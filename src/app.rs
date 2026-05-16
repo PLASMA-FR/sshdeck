@@ -19,6 +19,7 @@ use crate::{
         command::{display_command, is_dangerous_command, ssh_args_for, ssh_test_args_for},
         health::HealthInfo,
         host::SshHost,
+        session_frame,
         tunnel::{TunnelConfig, TunnelType},
     },
     theme::Theme,
@@ -383,9 +384,12 @@ impl App {
         if let Some(h)=self.current_host(){
             let alias=h.alias.clone(); let args=ssh_args_for(h); let cmd=display_command("ssh", &args); self.toast(ToastLevel::Info,format!("Connecting: {cmd}"));
             crossterm::terminal::disable_raw_mode()?;
-            if self.mouse_enabled { crossterm::execute!(std::io::stdout(), Show, DisableMouseCapture, crossterm::terminal::LeaveAlternateScreen)?; } else { crossterm::execute!(std::io::stdout(), Show, crossterm::terminal::LeaveAlternateScreen)?; }
+            let mut stdout = std::io::stdout();
+            if self.mouse_enabled { crossterm::execute!(stdout, Show, DisableMouseCapture, crossterm::terminal::LeaveAlternateScreen)?; } else { crossterm::execute!(stdout, Show, crossterm::terminal::LeaveAlternateScreen)?; }
+            session_frame::enter_session_frame(&mut stdout, &alias, self.ascii)?;
             let status=Command::new("ssh").args(&args).status();
-            if self.mouse_enabled { crossterm::execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen, Clear(ClearType::All), MoveTo(0, 0), Hide, EnableMouseCapture)?; } else { crossterm::execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen, Clear(ClearType::All), MoveTo(0, 0), Hide)?; }
+            session_frame::leave_session_frame(&mut stdout)?;
+            if self.mouse_enabled { crossterm::execute!(stdout, crossterm::terminal::EnterAlternateScreen, Clear(ClearType::All), MoveTo(0, 0), Hide, EnableMouseCapture)?; } else { crossterm::execute!(stdout, crossterm::terminal::EnterAlternateScreen, Clear(ClearType::All), MoveTo(0, 0), Hide)?; }
             crossterm::terminal::enable_raw_mode()?;
             self.render_reset_needed = true;
             match status { Ok(s) if s.success()=>self.toast(ToastLevel::Success,format!("Returned from {alias}")), Ok(s)=>self.toast(ToastLevel::Warning,format!("SSH exited with {s}: {cmd}")), Err(e)=>self.toast(ToastLevel::Error,format!("Could not start ssh: {e}")) }
