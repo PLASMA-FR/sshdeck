@@ -3,6 +3,14 @@ use std::process::Command;
 use crate::ssh::host::SshHost;
 
 pub fn ssh_args_for(host: &SshHost) -> Vec<String> {
+    ssh_args_for_with_forwards(host, true)
+}
+
+pub fn ssh_noninteractive_args_for(host: &SshHost) -> Vec<String> {
+    ssh_args_for_with_forwards(host, false)
+}
+
+fn ssh_args_for_with_forwards(host: &SshHost, include_forwards: bool) -> Vec<String> {
     let mut args = Vec::new();
 
     if let Some(port) = host.port {
@@ -24,11 +32,13 @@ pub fn ssh_args_for(host: &SshHost) -> Vec<String> {
     if let Some(interval) = host.server_alive_interval {
         args.extend(["-o".into(), format!("ServerAliveInterval={interval}")]);
     }
-    for forward in &host.local_forwards {
-        args.extend(["-L".into(), forward.clone()]);
-    }
-    for forward in &host.remote_forwards {
-        args.extend(["-R".into(), forward.clone()]);
+    if include_forwards {
+        for forward in &host.local_forwards {
+            args.extend(["-L".into(), forward.clone()]);
+        }
+        for forward in &host.remote_forwards {
+            args.extend(["-R".into(), forward.clone()]);
+        }
     }
 
     args.push(ssh_destination_for(host));
@@ -184,6 +194,24 @@ mod tests {
                 "raspberrypi.local",
                 "exit"
             ]
+        );
+    }
+
+    #[test]
+    fn noninteractive_args_use_resolved_destination_without_opening_forwards() {
+        let h = SshHost {
+            alias: "server".into(),
+            hostname: Some("10.0.0.44".into()),
+            user: Some("ahmad".into()),
+            port: Some(2222),
+            local_forwards: vec!["8080 localhost:80".into()],
+            remote_forwards: vec!["9090 localhost:90".into()],
+            ..Default::default()
+        };
+
+        assert_eq!(
+            ssh_noninteractive_args_for(&h),
+            vec!["-p", "2222", "ahmad@10.0.0.44"]
         );
     }
 

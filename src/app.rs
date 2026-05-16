@@ -297,22 +297,23 @@ impl App {
         self.file_selected = 0;
         self.file_scroll = 0;
         self.preview_scroll = 0;
-        let Some(host) = self.current_host().map(|h| h.alias.clone()) else {
+        let Some(host) = self.current_host().cloned() else {
             self.remote_entries.clear();
             self.remote_error = Some("No host selected".into());
             return;
         };
-        match remote_fs::list_remote(&host, &self.remote_path) {
+        let host_label = host.alias.clone();
+        match remote_fs::list_remote_host(&host, &self.remote_path) {
             Ok(entries) => {
                 let count = entries.len();
                 self.remote_entries = entries;
                 self.remote_error = None;
-                self.toast(ToastLevel::Success, format!("Opened {host}:{} · {count} item(s)", self.remote_path));
+                self.toast(ToastLevel::Success, format!("Opened {host_label}:{} · {count} item(s)", self.remote_path));
             }
             Err(e) => {
                 self.remote_entries.clear();
                 self.remote_error = Some(e.to_string());
-                self.toast(ToastLevel::Error, format!("Could not open {host}:{}", self.remote_path));
+                self.toast(ToastLevel::Error, format!("Could not open {host_label}:{}", self.remote_path));
             }
         }
     }

@@ -4,11 +4,20 @@ use super::{
     file_entry::{parse_ls_line, FileEntry},
     safety::shell_quote_path,
 };
+use crate::{ssh::command::ssh_noninteractive_args_for, ssh::host::SshHost};
 
 pub fn list_remote(host: &str, path: &str) -> anyhow::Result<Vec<FileEntry>> {
+    list_remote_with_args(&[host.to_string()], path)
+}
+
+pub fn list_remote_host(host: &SshHost, path: &str) -> anyhow::Result<Vec<FileEntry>> {
+    list_remote_with_args(&ssh_noninteractive_args_for(host), path)
+}
+
+fn list_remote_with_args(ssh_args: &[String], path: &str) -> anyhow::Result<Vec<FileEntry>> {
     let path_expr = remote_shell_path(path);
     let cmd = format!("cd -- {path_expr} && LC_ALL=C ls -la -- .");
-    let out = Command::new("ssh").arg(host).arg(cmd).output()?;
+    let out = Command::new("ssh").args(ssh_args).arg(cmd).output()?;
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
         anyhow::bail!(if stderr.is_empty() { "remote ls failed".into() } else { stderr });
