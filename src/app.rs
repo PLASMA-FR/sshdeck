@@ -236,7 +236,7 @@ impl App {
             ClickTarget::TunnelType(t) => { self.tunnel.tunnel_type = match t.as_str(){"remote"=>TunnelType::Remote,"dynamic"=>TunnelType::Dynamic,_=>TunnelType::Local}; },
             ClickTarget::FormField(f) => { let map=["alias","hostname/ip","user","port","identity-file","group","tags","notes"]; if let Some(form)=self.host_form.as_mut(){ if let Some(pos)=map.iter().position(|m| *m==f){ form.field=pos; } } self.focused_pane=f; },
             ClickTarget::ToastClose => self.toast=None,
-            ClickTarget::StatusShortcut(s) => self.run_palette_action(&s)?,
+            ClickTarget::StatusShortcut(s) => self.activate_status_shortcut(&s)?,
             ClickTarget::Pane(p) => self.focused_pane=p,
         }
         Ok(())
@@ -247,6 +247,26 @@ impl App {
     fn scroll_target(&mut self, target:Option<ClickTarget>, delta:i16) { match target { Some(ClickTarget::FilePreview) => self.preview_scroll = add_scroll(self.preview_scroll, delta), Some(ClickTarget::FileEntry(_)) => self.file_scroll = add_scroll(self.file_scroll, delta), _ => self.host_scroll = add_scroll(self.host_scroll, delta) } }
     fn open_host_context(&mut self) { if let Some(h)=self.current_host(){ let title=h.alias.clone(); self.context_menu=Some(ContextMenu{title, items:vec![ ("Connect".into(),ClickTarget::HostConnectButton(self.current_host_index().unwrap_or(0))), ("Files".into(),ClickTarget::HostFilesButton(self.current_host_index().unwrap_or(0))), ("Tunnel".into(),ClickTarget::HostTunnelButton(self.current_host_index().unwrap_or(0))), ("Run Command".into(),ClickTarget::StatusShortcut("run".into())), ("Health".into(),ClickTarget::HostHealthButton(self.current_host_index().unwrap_or(0))), ("Edit".into(),ClickTarget::HostEditButton(self.current_host_index().unwrap_or(0))), ("Delete".into(),ClickTarget::ModalButton("delete-host".into())) ]}); } }
     fn open_file_context(&mut self, path:String) { self.context_menu=Some(ContextMenu{title:path.clone(),items:vec![("Preview".into(),ClickTarget::FileEntry(path.clone())),("Edit".into(),ClickTarget::StatusShortcut("edit-file".into())),("Download".into(),ClickTarget::StatusShortcut("download".into())),("Rename".into(),ClickTarget::StatusShortcut("rename".into())),("Copy Path".into(),ClickTarget::Breadcrumb(path)),("Delete".into(),ClickTarget::ModalButton("delete-file".into()))]}); }
+
+    fn activate_status_shortcut(&mut self, shortcut: &str) -> Result<()> {
+        match shortcut.to_ascii_lowercase().as_str() {
+            "/" => { self.mode = Mode::Search; self.search.clear(); },
+            "?" => self.view = View::Help,
+            "a" => self.open_host_form(HostFormMode::Add),
+            "enter" => self.connect_selected()?,
+            "s" => { self.view = View::Files; self.remote_path = "/var/www/app".into(); },
+            "t" => { if let Some(h)=self.current_host(){ self.tunnel.host_alias=h.alias.clone(); } self.view=View::Tunnels; },
+            "r" | ":" => { self.view=View::CommandRunner; self.command_input="uptime".into(); },
+            "h" => self.fetch_health(),
+            "l" => { self.logs=storage::read_logs(); self.view=View::Logs; },
+            "esc" => { self.context_menu=None; self.host_form=None; self.mode=Mode::Normal; if self.view != View::Dashboard { self.view=View::Dashboard; } },
+            "tab" => { if self.view==View::Files { if self.files_dual_pane { self.active_file_pane=1-self.active_file_pane; } else { self.files_dual_pane=true; } } },
+            "ctrl+p" => { self.mode=Mode::Palette; self.palette_input.clear(); },
+            "j/k" | "h/l" | "space" | "right-click" | "click" => self.toast(ToastLevel::Info, format!("Shortcut: {shortcut}")),
+            other => self.run_palette_action(other)?,
+        }
+        Ok(())
+    }
     
     fn run_palette_action(&mut self, action:&str)->Result<()> { let a=action.to_ascii_lowercase(); self.mode=Mode::Normal; if a.contains("include") { self.toast(ToastLevel::Info,"Add this to ~/.ssh/config: Include ~/.config/sshdeck/ssh_config".into()); } else if a.contains("add host") || a=="a" { self.open_host_form(HostFormMode::Add); } else if a.contains("duplicate") { self.open_host_form(HostFormMode::Duplicate); } else if a.contains("theme") { self.toggle_theme(); } else if a.contains("file") || a=="s" { self.view=View::Files; } else if a.contains("tunnel") || a=="t" { self.view=View::Tunnels; } else if a.contains("health") || a=="h" { self.fetch_health(); } else if a.contains("run") || a=="r" { self.view=View::CommandRunner; } else if a.contains("quit") { self.should_quit=true; } else { self.toast(ToastLevel::Info, format!("Action: {action}")); } Ok(()) }
 

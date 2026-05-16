@@ -21,6 +21,7 @@ pub fn draw(f:&mut Frame, app:&mut App){
 mod tests {
     use super::*;
     use ratatui::{backend::TestBackend, Terminal};
+    use unicode_width::UnicodeWidthStr;
 
     use crate::{
         app::{AppOptions, HostFormMode, HostFormState, Mode, View},
@@ -120,5 +121,30 @@ mod tests {
 
         assert_eq!(app.mouse.registry.hit(33, 15), Some(ClickTarget::CommandPaletteItem("Add Host".into())));
         assert_eq!(app.mouse.registry.hit(33, 16), Some(ClickTarget::CommandPaletteItem("Open SSHDeck Files".into())));
+    }
+
+    #[test]
+    fn status_bar_mouse_regions_match_visible_shortcut_chips() {
+        let mut app = test_app();
+        render(&mut app);
+
+        let status_y = 39;
+        let prefix = format!(" NORMAL │ {} hosts │ mouse:on │ ", app.hosts.len());
+        let first_x = UnicodeWidthStr::width(prefix.as_str()) as u16;
+
+        let search = first_rect_for(&app, &ClickTarget::StatusShortcut("/".into())).unwrap();
+        assert_eq!(search, Rect { x: first_x, y: status_y, width: UnicodeWidthStr::width("  / search  ") as u16, height: 1 });
+        assert_eq!(app.mouse.registry.hit(first_x, status_y), Some(ClickTarget::StatusShortcut("/".into())));
+        assert_eq!(app.mouse.registry.hit(first_x + search.width - 1, status_y), Some(ClickTarget::StatusShortcut("/".into())));
+
+        let add = first_rect_for(&app, &ClickTarget::StatusShortcut("a".into())).unwrap();
+        assert_eq!(add.x, search.x + search.width + 1);
+        assert_eq!(add.y, status_y);
+        assert_eq!(app.mouse.registry.hit(add.x, status_y), Some(ClickTarget::StatusShortcut("a".into())));
+        assert_eq!(app.mouse.registry.hit(add.x + add.width - 1, status_y), Some(ClickTarget::StatusShortcut("a".into())));
+
+        let help = first_rect_for(&app, &ClickTarget::StatusShortcut("?".into())).unwrap();
+        assert_eq!(help.y, status_y);
+        assert_eq!(app.mouse.registry.hit(help.x + help.width / 2, status_y), Some(ClickTarget::StatusShortcut("?".into())));
     }
 }
