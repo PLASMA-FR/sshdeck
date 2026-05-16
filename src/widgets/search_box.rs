@@ -1,0 +1,1 @@
+use ratatui::{prelude::*, widgets::*}; use crate::app::App; pub fn paragraph<'a>(app:&App)->Paragraph<'a>{ Paragraph::new(format!("  /{}", app.search)).style(app.theme.normal()).block(Block::bordered().border_style(app.theme.border()).title(" Search ")) }

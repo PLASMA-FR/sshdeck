@@ -1,0 +1,1 @@
+use ratatui::{prelude::*, widgets::*}; use crate::app::App; pub fn draw(f:&mut Frame, app:&App, area:Rect, path:&str){ f.render_widget(Paragraph::new(format!("{}", path)).style(app.theme.muted()).block(Block::bordered().title(" Path ")), area); }

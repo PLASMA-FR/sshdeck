@@ -1,0 +1,2 @@
+use ratatui::{prelude::*, widgets::*}; use crate::app::App; pub fn block<'a>(app:&App)->Paragraph<'a>{ let subtitle=if app.ascii{"Termius for the terminal · Local-first · Rust-powered"}else{"Termius for the terminal · Local-first · Rust-powered ⚡"}; Paragraph::new(format!("SSHDeck  {}
+{}", if app.ascii { app.animator.ascii_spinner() } else { app.animator.spinner() }, subtitle)).style(app.theme.title()).block(Block::bordered().border_style(app.theme.border()).title(" SSHDeck ")) }

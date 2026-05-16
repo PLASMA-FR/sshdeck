@@ -1,0 +1,1 @@
+use ratatui::{prelude::*, widgets::*}; use crate::app::App; pub fn gauge<'a>(app:&App, label:&'a str, ratio:f64)->Gauge<'a>{ Gauge::default().block(Block::bordered().title(label)).gauge_style(Style::default().fg(app.theme.success)).ratio(ratio) }

@@ -1,0 +1,1 @@
+use ratatui::{prelude::*, widgets::*}; use crate::app::App; pub fn paragraph<'a>(app:&App, text:&str)->Paragraph<'a>{ Paragraph::new(format!("{} {}", if app.ascii{app.animator.ascii_spinner()}else{app.animator.spinner()}, text)).style(app.theme.muted()) }

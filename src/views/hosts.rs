@@ -1,0 +1,1 @@
+use ratatui::{prelude::*, widgets::*}; use crate::app::App; pub fn draw(f:&mut Frame, app:&App, area:Rect){ f.render_widget(Paragraph::new(format!("{} host(s)", app.hosts.len())).block(Block::bordered().title("Hosts")), area); }

@@ -1,0 +1,1 @@
+use ratatui::{prelude::*, widgets::*}; use crate::app::App; pub fn preview<'a>(app:&App, text:String)->Paragraph<'a>{ Paragraph::new(text).wrap(Wrap{trim:false}).style(app.theme.normal()).block(Block::bordered().border_style(app.theme.inactive_border()).title(" Preview ")) }

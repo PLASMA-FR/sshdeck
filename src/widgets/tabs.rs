@@ -1,0 +1,1 @@
+use ratatui::{prelude::*, widgets::*}; use crate::app::App; pub fn top<'a>(app:&App)->Tabs<'a>{ Tabs::new(vec!["Dashboard","Hosts","Files","Tunnels","Commands","Logs","Settings"]).style(app.theme.muted()).highlight_style(app.theme.title()).select(0) }
