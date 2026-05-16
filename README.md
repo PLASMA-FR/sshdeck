@@ -4,11 +4,13 @@
   <img src="docs/images/logo.png" alt="SSHDeck logo" width="180" />
 </p>
 
-> SSHDeck — Termius + Yazi for your terminal. A clean, local-first SSH command center built in Rust.
+> Termius + Yazi for your terminal.
 
-No cloud. No account. No Electron. Just your terminal and your existing OpenSSH config.
+A clean, local-first SSH command center built in Rust.
 
-SSHDeck is a fast keyboard-first and mouse-friendly terminal SSH command center for managing SSH hosts, tunnels, commands, health checks, logs, and Yazi-style remote file workflows.
+No cloud. No account. No Electron. Just your terminal and OpenSSH.
+
+SSHDeck helps you manage servers, remote files, tunnels, commands, health checks, and SSH workflows without cloud accounts, Electron, tracking, or lock-in.
 
 ![SSHDeck black theme dashboard](docs/images/blackout-dashboard.png)
 
@@ -89,9 +91,9 @@ SSHDeck then offers to add this safe OpenSSH include line to `~/.ssh/config` aft
 Include ~/.config/sshdeck/ssh_config
 ```
 
-Tagline:
+Core promise:
 
-“Termius for the terminal. No cloud. No account. No Electron.”
+No cloud. No account. No Electron. No AI API. No tracking. No lock-in.
 
 ## Comparison
 

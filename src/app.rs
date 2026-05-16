@@ -244,8 +244,9 @@ impl App {
 
     fn dispatch_click(&mut self, target: ClickTarget) -> Result<()> {
         match target {
-            ClickTarget::SidebarGroup(g) => self.click_nav(g),
+            ClickTarget::SidebarGroup(g) | ClickTarget::SidebarItem(g) => self.click_nav(g),
             ClickTarget::HostRow(i) => self.select_host_by_index(i),
+            ClickTarget::HostActionButton { host_index, action } => { self.select_host_by_index(host_index); self.run_palette_action(&action)?; },
             ClickTarget::HostConnectButton(i) => { self.select_host_by_index(i); self.connect_selected()?; },
             ClickTarget::HostFilesButton(i) => { self.select_host_by_index(i); self.open_files_home(); },
             ClickTarget::HostTunnelButton(i) => { self.select_host_by_index(i); if let Some(h)=self.current_host(){ self.tunnel.host_alias=h.alias.clone(); } self.view=View::Tunnels; },
@@ -257,6 +258,7 @@ impl App {
             ClickTarget::CommandPaletteItem(a) => self.run_palette_action(&a)?,
             ClickTarget::ModalButton(b) if b=="close" || b=="cancel" => { self.context_menu=None; self.host_form=None; self.mode=Mode::Normal; },
             ClickTarget::ModalButton(b) if b=="add-host" => self.open_host_form(HostFormMode::Add),
+            ClickTarget::AddHostButton => self.open_host_form(HostFormMode::Add),
             ClickTarget::ModalButton(b) if b=="import-hosts" => self.toast(ToastLevel::Info,"Import reads ~/.ssh/config automatically on startup".into()),
             ClickTarget::ModalButton(b) if b=="test-host" => self.test_host_form(),
             ClickTarget::ModalButton(b) if b=="save-host" => self.save_host_form()?,
@@ -269,7 +271,7 @@ impl App {
             ClickTarget::TunnelType(t) => { self.tunnel.tunnel_type = match t.as_str(){"remote"=>TunnelType::Remote,"dynamic"=>TunnelType::Dynamic,_=>TunnelType::Local}; },
             ClickTarget::FormField(f) => { let map=["alias","hostname/ip","user","port","identity-file","group","tags","notes"]; if let Some(form)=self.host_form.as_mut(){ if let Some(pos)=map.iter().position(|m| *m==f){ form.field=pos; } } self.focused_pane=f; },
             ClickTarget::ToastClose => self.toast=None,
-            ClickTarget::StatusShortcut(s) => self.activate_status_shortcut(&s)?,
+            ClickTarget::StatusShortcut(s) | ClickTarget::ContextMenuItem(s) => self.activate_status_shortcut(&s)?,
             ClickTarget::Pane(p) => self.focused_pane=p,
         }
         Ok(())

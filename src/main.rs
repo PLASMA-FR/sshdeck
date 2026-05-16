@@ -13,11 +13,11 @@ mod ui;
 mod views;
 mod widgets;
 
-use std::path::PathBuf;
+use std::{io::Stdout, path::PathBuf};
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use crossterm::{execute, terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}, event::{EnableMouseCapture, DisableMouseCapture}};
+use crossterm::{event::{DisableMouseCapture, EnableMouseCapture}, execute, terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}};
 use ratatui::{backend::CrosstermBackend, Terminal};
 
 use app::{App, AppOptions};
@@ -26,7 +26,7 @@ use config::ssh_config::parse_default_ssh_config;
 use ssh::health::DoctorReport;
 
 #[derive(Parser, Debug)]
-#[command(name = "sshdeck", version, about = "Termius for the terminal. No cloud. No account. No Electron.")]
+#[command(name = "sshdeck", version, about = "Termius + Yazi for your terminal. No cloud. No account. No Electron.")]
 struct Cli {
     #[arg(long)]
     config: Option<PathBuf>,
@@ -38,6 +38,8 @@ struct Cli {
     mouse: bool,
     #[arg(long)]
     ascii: bool,
+    #[arg(long, value_name = "THEME", default_value = None)]
+    theme: Option<String>,
     #[arg(long)]
     quick: Option<String>,
     #[arg(value_name = "TARGET")]
@@ -63,7 +65,8 @@ fn main() -> Result<()> {
     }
     match cli.command {
         Some(Commands::Doctor) => {
-            let cfg = AppConfig::load_or_default(cli.config.clone())?;
+            let mut cfg = AppConfig::load_or_default(cli.config.clone())?;
+            if let Some(theme) = cli.theme.clone() { cfg.ui.theme = theme; }
             let report = DoctorReport::run(&cfg);
             println!("{}", report.render_text());
             Ok(())
@@ -82,18 +85,50 @@ fn main() -> Result<()> {
 
 fn run_tui(cli: Cli) -> Result<()> {
     let mut stdout = std::io::stdout();
-    enable_raw_mode()?;
-    let config = AppConfig::load_or_default(cli.config.clone())?;
+    let mut config = AppConfig::load_or_default(cli.config.clone())?;
+    if let Some(theme) = cli.theme.clone() { config.ui.theme = theme; }
     let mouse_enabled = (cli.mouse || config.ui.mouse) && !cli.no_mouse;
+    enable_raw_mode()?;
     if mouse_enabled { execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?; } else { execute!(stdout, EnterAlternateScreen)?; }
+    let mut guard = TerminalCleanup::new(mouse_enabled);
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     let result = {
         let mut app = App::new(config, AppOptions { no_animations: cli.no_animations, ascii: cli.ascii, mouse: mouse_enabled })?;
         app.run(&mut terminal)
     };
-    disable_raw_mode()?;
-    if mouse_enabled { execute!(terminal.backend_mut(), DisableMouseCapture, LeaveAlternateScreen)?; } else { execute!(terminal.backend_mut(), LeaveAlternateScreen)?; }
+    cleanup_terminal(terminal.backend_mut(), mouse_enabled)?;
     terminal.show_cursor()?;
+    guard.disarm();
     result
+}
+
+struct TerminalCleanup { active: bool, mouse: bool }
+
+impl TerminalCleanup {
+    fn new(mouse: bool) -> Self { Self { active: true, mouse } }
+    fn disarm(&mut self) { self.active = false; }
+}
+
+impl Drop for TerminalCleanup {
+    fn drop(&mut self) {
+        if !self.active { return; }
+        let _ = disable_raw_mode();
+        let mut stdout = std::io::stdout();
+        if self.mouse {
+            let _ = execute!(stdout, DisableMouseCapture, LeaveAlternateScreen);
+        } else {
+            let _ = execute!(stdout, LeaveAlternateScreen);
+        }
+    }
+}
+
+fn cleanup_terminal(stdout: &mut CrosstermBackend<Stdout>, mouse_enabled: bool) -> Result<()> {
+    disable_raw_mode()?;
+    if mouse_enabled {
+        execute!(stdout, DisableMouseCapture, LeaveAlternateScreen)?;
+    } else {
+        execute!(stdout, LeaveAlternateScreen)?;
+    }
+    Ok(())
 }

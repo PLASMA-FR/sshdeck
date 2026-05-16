@@ -7,8 +7,10 @@ use crate::app::View;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ClickTarget {
+    SidebarItem(String),
     SidebarGroup(String),
     HostRow(usize),
+    HostActionButton { host_index: usize, action: String },
     HostConnectButton(usize),
     HostEditButton(usize),
     HostFilesButton(usize),
@@ -25,6 +27,27 @@ pub enum ClickTarget {
     FormField(String),
     ToastClose,
     StatusShortcut(String),
+    Pane(String),
+    AddHostButton,
+    ContextMenuItem(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MouseButtonAction {
+    Click,
+    DoubleClick,
+    RightClick,
+    Drag,
+    Hover,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ScrollTarget {
+    Hosts,
+    Files,
+    Preview,
+    Transfers,
+    Logs,
     Pane(String),
 }
 
