@@ -12,7 +12,7 @@ use crate::{
     files::transfer::TransferQueue,
     mouse::{ClickTarget, MouseAction, MouseState},
     ssh::{
-        command::{is_dangerous_command, ssh_command_for},
+        command::{display_command, is_dangerous_command, ssh_args_for, ssh_command_for, ssh_test_args_for},
         health::HealthInfo,
         host::SshHost,
         tunnel::{TunnelConfig, TunnelType},
@@ -346,7 +346,7 @@ impl App {
 
     fn existing_aliases_for_form(&self)->Vec<String>{ self.hosts.iter().map(|h|h.alias.clone()).filter(|a| self.host_form.as_ref().and_then(|f|f.original_alias.as_ref()).map(|o|o!=a).unwrap_or(true)).collect() }
     fn validate_current_form(&mut self)->bool{ let aliases=self.existing_aliases_for_form(); let Some(form)=self.host_form.as_mut() else { return false; }; form.messages=managed_hosts::validate_host_draft(&form.draft,&aliases); !form.messages.iter().any(|m| m.level==HostValidationLevel::Error) }
-    fn test_host_form(&mut self){ if !self.validate_current_form(){ return; } let Some(form)=self.host_form.as_mut() else { return; }; let target=if !form.draft.alias.trim().is_empty(){ form.draft.alias.trim().to_string() } else { format!("{}@{}", form.draft.user.trim(), form.draft.hostname.trim()) }; let status=std::process::Command::new("ssh").args(["-o","BatchMode=yes","-o","ConnectTimeout=5",&target,"exit"]).status(); form.test_result=Some(match status { Ok(s) if s.success()=>"✓ Connection successful".into(), Ok(s)=>format!("✗ Connection failed: ssh exited with {}", s), Err(e)=>format!("✗ Connection failed: {e}") }); }
+    fn test_host_form(&mut self){ if !self.validate_current_form(){ return; } let Some(form)=self.host_form.as_mut() else { return; }; let Some(host)=form.draft.to_host() else { form.test_result=Some("✗ Connection test could not build an SSH command from this form".into()); return; }; let args=ssh_test_args_for(&host, 5); let command=display_command("ssh", &args); let status=std::process::Command::new("ssh").args(&args).status(); form.test_result=Some(match status { Ok(s) if s.success()=>format!("✓ Connection successful\n{command}"), Ok(s)=>format!("✗ Connection failed: ssh exited with {s}\n{command}"), Err(e)=>format!("✗ Connection failed: {e}\n{command}") }); }
     fn save_host_form(&mut self)->Result<()> { if !self.validate_current_form(){ return Ok(()); } let Some(form)=self.host_form.clone() else { return Ok(()); }; let Some(host)=form.draft.to_host() else { return Ok(()); };
         let original=form.original_alias.clone();
         self.hosts.retain(|h| Some(&h.alias)!=original.as_ref() && h.alias != host.alias);
@@ -372,13 +372,13 @@ impl App {
 
     pub fn connect_selected(&mut self)->Result<()> {
         if let Some(h)=self.current_host(){
-            let alias=h.alias.clone(); let cmd=ssh_command_for(h); self.toast(ToastLevel::Info,format!("Connecting: {cmd}"));
+            let alias=h.alias.clone(); let args=ssh_args_for(h); let cmd=display_command("ssh", &args); self.toast(ToastLevel::Info,format!("Connecting: {cmd}"));
             crossterm::terminal::disable_raw_mode()?;
             if self.mouse_enabled { crossterm::execute!(std::io::stdout(), DisableMouseCapture, crossterm::terminal::LeaveAlternateScreen)?; } else { crossterm::execute!(std::io::stdout(), crossterm::terminal::LeaveAlternateScreen)?; }
-            let _=Command::new("ssh").arg(&alias).status();
+            let status=Command::new("ssh").args(&args).status();
             if self.mouse_enabled { crossterm::execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen, EnableMouseCapture)?; } else { crossterm::execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen)?; }
             crossterm::terminal::enable_raw_mode()?;
-            self.toast(ToastLevel::Success,format!("Returned from {alias}"));
+            match status { Ok(s) if s.success()=>self.toast(ToastLevel::Success,format!("Returned from {alias}")), Ok(s)=>self.toast(ToastLevel::Warning,format!("SSH exited with {s}: {cmd}")), Err(e)=>self.toast(ToastLevel::Error,format!("Could not start ssh: {e}")) }
         }
         Ok(())
     }
