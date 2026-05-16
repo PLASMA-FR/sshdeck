@@ -9,8 +9,8 @@ pub fn draw(f:&mut Frame, app:&mut App){
         f.render_widget(p, area); return;
     }
     if app.show_splash() {
-        let outer = Layout::vertical([Constraint::Fill(1), Constraint::Length(17), Constraint::Fill(1)]).split(area);
-        let width = if area.width > 74 { 64 } else { area.width.saturating_sub(4) };
+        let outer = Layout::vertical([Constraint::Fill(1), Constraint::Length(25), Constraint::Fill(1)]).split(area);
+        let width = if area.width > 84 { 74 } else { area.width.saturating_sub(4) };
         let inner = Layout::horizontal([Constraint::Fill(1), Constraint::Length(width), Constraint::Fill(1)]).split(outer[1]);
         f.render_widget(logo::splash(app), inner[1]);
         return;

@@ -2,29 +2,48 @@ use ratatui::{prelude::*, widgets::*};
 use crate::app::App;
 
 pub fn large_logo(unicode: bool, nerd: bool) -> String {
-    if !unicode { return "[>_] SSHDeck\nlocal-first SSH command center".into(); }
-    let server = if nerd { "󰣀" } else { "▦" };
-    format!(r#"      ╭────────────╮
-   ╭──┤  >_        │
-   │  │     ╭─╮    │
-   │  │  {server}  │◈│  ⇄
-   │  │     ╰─╯    │
-   ╰──┤  SSHDeck   │
-      ╰────────────╯"#)
+    if !unicode { return ascii_logo_mark("*"); }
+    unicode_logo_mark(nerd, "◆")
 }
 
 pub fn splash_mark(unicode: bool, nerd: bool, shimmer: &str) -> String {
-    if !unicode {
-        return format!("   .----------.\n .-|  >_      |\n | |  []  {shimmer}  |--\n '-| SSHDeck |\n   '----------'");
-    }
-    let server = if nerd { "󰣀" } else { "▦" };
-    format!(r#"        ╭────────────╮
-     ╭──┤  >_        │
-     │  │     ╭─╮    │
-  {shimmer}──┤  {server}  │◈│  ⇄
-     │  │     ╰─╯    │
-     ╰──┤  SSHDeck   │
-        ╰────────────╯"#)
+    if !unicode { return ascii_logo_mark(shimmer); }
+    unicode_logo_mark(nerd, shimmer)
+}
+
+fn unicode_logo_mark(nerd: bool, shimmer: &str) -> String {
+    let prompt = if nerd { "❯_" } else { ">_" };
+    format!(r#"          ╭────────────────────╮
+       ╭──┤  {prompt:<3}               │╮
+       │  │                    ││
+       │  │        ╭──╮        ││
+       │  │       ╱    ╲       ││
+   {shimmer}───┤       ╲    ╱       ││
+       │  │        ╲  ╱        ││
+       │  │         ╲╱         ││
+       │  │   ○──────────◉    ││
+       │  │                    ││
+       │  │   ○──────────◉    ││
+       ╰──┤      SSHDeck      │╯
+          ╰────────────────────╯
+            ╰──────────────────╯"#)
+}
+
+fn ascii_logo_mark(shimmer: &str) -> String {
+    format!(r#"        .--------------------.
+     .--|  >_                |.
+     |  |                    ||
+     |  |        .--.        ||
+     |  |       /    \       ||
+ {shimmer}---|       \    /       ||
+     |  |        \  /        ||
+     |  |         \/         ||
+     |  |   o----------o    ||
+     |  |                    ||
+     |  |   o----------o    ||
+     '--|      SSHDeck      |'
+        '--------------------'
+          '------------------'"#)
 }
 
 pub fn compact(app:&App)->String { if app.ascii { "[>_] SSHDeck".into() } else if app.config.ui.nerd_font { "󰣀 SSHDeck".into() } else { "▦ SSHDeck".into() } }
@@ -44,4 +63,28 @@ pub fn splash<'a>(app:&App)->Paragraph<'a>{
         .alignment(Alignment::Center)
         .style(app.theme.title())
         .block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).border_style(app.theme.active_border()).title(" SSHDeck "))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unicode_logo_matches_generated_logo_motifs() {
+        let logo = splash_mark(true, false, "◆");
+        assert!(logo.contains(">_"));
+        assert!(logo.contains("╭──╮"));
+        assert!(logo.contains("╲╱"));
+        assert!(logo.contains("○──────────◉"));
+        assert!(logo.contains("╰──────────────────╯"));
+    }
+
+    #[test]
+    fn ascii_logo_keeps_same_motifs_without_unicode() {
+        let logo = splash_mark(false, false, "*");
+        assert!(logo.contains(">_"));
+        assert!(logo.contains(".--."));
+        assert!(logo.contains("o----------o"));
+        assert!(logo.contains("SSHDeck"));
+    }
 }
