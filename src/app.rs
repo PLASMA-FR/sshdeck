@@ -1,7 +1,11 @@
 use std::{process::Command, time::Duration};
 
 use anyhow::Result;
-use crossterm::event::{DisableMouseCapture, EnableMouseCapture, KeyCode, KeyModifiers, MouseEvent};
+use crossterm::{
+    cursor::{Hide, MoveTo, Show},
+    event::{DisableMouseCapture, EnableMouseCapture, KeyCode, KeyModifiers, MouseEvent},
+    terminal::{Clear, ClearType},
+};
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use ratatui::{backend::Backend, Terminal};
 
@@ -12,7 +16,7 @@ use crate::{
     files::transfer::TransferQueue,
     mouse::{ClickTarget, MouseAction, MouseState},
     ssh::{
-        command::{display_command, is_dangerous_command, ssh_args_for, ssh_command_for, ssh_test_args_for},
+        command::{display_command, is_dangerous_command, ssh_args_for, ssh_test_args_for},
         health::HealthInfo,
         host::SshHost,
         tunnel::{TunnelConfig, TunnelType},
@@ -92,6 +96,7 @@ pub struct App {
     pub managed_aliases: Vec<String>,
     pub host_form: Option<HostFormState>,
     pub hide_aliases: Vec<String>,
+    pub render_reset_needed: bool,
 }
 
 impl App {
@@ -115,7 +120,7 @@ impl App {
             should_quit: false, toast: None, health: HealthInfo::empty(),
             tunnel: TunnelConfig { tunnel_type: TunnelType::Local, host_alias: String::new(), bind_address: None, local_port: 8080, target_host: Some("localhost".into()), target_port: Some(80) },
             remote_path: "~".into(), local_path: config.files.default_local_dir.clone(), files_dual_pane: false, active_file_pane: 1, selected_files: 0,
-            transfer_queue: TransferQueue::default(), command_output: String::new(), managed_aliases, host_form: None, hide_aliases: Vec::new(), config,
+            transfer_queue: TransferQueue::default(), command_output: String::new(), managed_aliases, host_form: None, hide_aliases: Vec::new(), render_reset_needed: false, config,
         };
         app.toast(ToastLevel::Success, format!("Found {} host(s). Your SSH config stays untouched.", app.hosts.len()));
         Ok(app)
@@ -124,6 +129,10 @@ impl App {
     pub fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<()> {
         let mut events = EventLoop::new(Duration::from_millis(80));
         while !self.should_quit {
+            if self.render_reset_needed {
+                terminal.clear()?;
+                self.render_reset_needed = false;
+            }
             terminal.draw(|f| ui::draw(f, self))?;
             match events.next()? {
                 Event::Tick => self.on_tick(),
@@ -374,10 +383,11 @@ impl App {
         if let Some(h)=self.current_host(){
             let alias=h.alias.clone(); let args=ssh_args_for(h); let cmd=display_command("ssh", &args); self.toast(ToastLevel::Info,format!("Connecting: {cmd}"));
             crossterm::terminal::disable_raw_mode()?;
-            if self.mouse_enabled { crossterm::execute!(std::io::stdout(), DisableMouseCapture, crossterm::terminal::LeaveAlternateScreen)?; } else { crossterm::execute!(std::io::stdout(), crossterm::terminal::LeaveAlternateScreen)?; }
+            if self.mouse_enabled { crossterm::execute!(std::io::stdout(), Show, DisableMouseCapture, crossterm::terminal::LeaveAlternateScreen)?; } else { crossterm::execute!(std::io::stdout(), Show, crossterm::terminal::LeaveAlternateScreen)?; }
             let status=Command::new("ssh").args(&args).status();
-            if self.mouse_enabled { crossterm::execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen, EnableMouseCapture)?; } else { crossterm::execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen)?; }
+            if self.mouse_enabled { crossterm::execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen, Clear(ClearType::All), MoveTo(0, 0), Hide, EnableMouseCapture)?; } else { crossterm::execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen, Clear(ClearType::All), MoveTo(0, 0), Hide)?; }
             crossterm::terminal::enable_raw_mode()?;
+            self.render_reset_needed = true;
             match status { Ok(s) if s.success()=>self.toast(ToastLevel::Success,format!("Returned from {alias}")), Ok(s)=>self.toast(ToastLevel::Warning,format!("SSH exited with {s}: {cmd}")), Err(e)=>self.toast(ToastLevel::Error,format!("Could not start ssh: {e}")) }
         }
         Ok(())
