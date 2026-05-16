@@ -52,12 +52,12 @@ fn draw_empty_state(f: &mut Frame, app: &mut App, area: Rect) {
     app.mouse.register(Rect { x: card.x + 25, y: card.y + 7, width: 24, height: 1 }, import_target.clone());
 
     let text = vec![
-        Line::from(Span::styled("No servers in the deck yet", app.theme.title())),
+        Line::from(Span::styled("No servers here yet", app.theme.title())),
         Line::raw(""),
-        Line::from("SSHDeck reads your existing OpenSSH config."),
-        Line::from("You can also add a managed host without touching it."),
+        Line::from("SSHDeck can read OpenSSH config, or keep its own managed hosts."),
+        Line::from("Either way, it will not rewrite your SSH setup behind your back."),
         Line::raw(""),
-        Line::from(Span::styled("Start with one safe step:", app.theme.muted())),
+        Line::from(Span::styled("Start small:", app.theme.muted())),
         Line::from(vec![
             button::label(app, "Add Host", &add_target, ButtonKind::Primary),
             Span::raw("  "),
@@ -106,14 +106,14 @@ fn draw_nav(f: &mut Frame, app: &mut App, area: Rect) {
 
 fn nav_label(label: &str) -> String {
     match label {
-        "All" => "All hosts".into(),
-        "Favorites" => "★ Favorites".into(),
-        "Production" => "Production".into(),
-        "Homelab" => "Homelab".into(),
-        "Recent" => "Recent".into(),
-        "Tunnels" => "Tunnels".into(),
-        "Commands" => "Commands".into(),
-        "Logs" => "Logs".into(),
+        "All" => "all servers".into(),
+        "Favorites" => "starred".into(),
+        "Production" => "production".into(),
+        "Homelab" => "homelab".into(),
+        "Recent" => "recent".into(),
+        "Tunnels" => "tunnels".into(),
+        "Commands" => "commands".into(),
+        "Logs" => "logbook".into(),
         _ => label.into(),
     }
 }
@@ -130,8 +130,10 @@ fn draw_hosts(f: &mut Frame, app: &mut App, area: Rect) {
 
     let mut rows = vec![ListItem::new(Line::from(vec![
         Span::styled("Servers", app.theme.title()),
-        Span::raw("                     "),
-        button::label(app, "+ Add Host", &add_target, ButtonKind::Secondary),
+        Span::raw("  "),
+        Span::styled(format!("{} total", app.filtered.len()), app.theme.muted()),
+        Span::raw("                 "),
+        button::label(app, "+ Add", &add_target, ButtonKind::Secondary),
     ]))];
 
     for (display_pos, host_idx) in app.filtered.iter().enumerate().skip(app.host_scroll).take(visible_rows) {
@@ -170,11 +172,12 @@ fn keep_selection_visible(app: &mut App, visible_rows: usize) {
 }
 
 fn host_row(app: &App, host: &crate::ssh::host::SshHost, index: usize) -> String {
-    let managed = if app.managed_aliases.contains(&host.alias) { "●" } else { "○" };
+    let source = if app.managed_aliases.contains(&host.alias) { "managed" } else { "ssh" };
     let group = host.group.clone().unwrap_or_else(|| "ungrouped".into());
-    let favorite = if host.favorite { " ★" } else { "  " };
+    let favorite = if host.favorite { " ★" } else { "" };
     let marker = if app.selected == index { "›" } else { " " };
-    format!("{marker} {managed} {:<20} {:<11}{favorite}", host.alias, group)
+    let user = host.user.clone().unwrap_or_else(|| "default".into());
+    format!("{marker} {:<20} {:<10} {:<9} {source}{favorite}", host.alias, group, user)
 }
 
 fn draw_details(f: &mut Frame, app: &mut App, area: Rect) {
@@ -184,7 +187,7 @@ fn draw_details(f: &mut Frame, app: &mut App, area: Rect) {
     let idx = app.current_host_index().unwrap_or(0);
     let target = host.hostname.clone().unwrap_or_else(|| "from ~/.ssh/config".into());
     let user = host.user.clone().unwrap_or_else(|| "OpenSSH default".into());
-    let notes = host.notes.clone().unwrap_or_else(|| "No notes yet. Add the reminder future-you will need.".into());
+    let notes = host.notes.clone().unwrap_or_else(|| "No note yet. Add the thing you usually forget.".into());
     let group = host.group.clone().unwrap_or_else(|| "Ungrouped".into());
     let tags = if host.tags.is_empty() { "No tags".into() } else { host.tags.join(", ") };
 
@@ -202,11 +205,11 @@ fn draw_details(f: &mut Frame, app: &mut App, area: Rect) {
 
     let mut lines = vec![
         Line::from(Span::styled(alias.clone(), app.theme.title())),
-        Line::from(Span::styled("Ready when you are", app.theme.success())),
+        Line::from(Span::styled("ready", app.theme.success())),
         Line::raw(""),
-        Line::from(format!("{}@{}", user, target)),
-        Line::from(format!("port {} · {}", host.port_text(), group)),
-        Line::from(Span::styled(tags, app.theme.muted())),
+        Line::from(format!("login  {}@{}", user, target)),
+        Line::from(format!("where  port {} · {}", host.port_text(), group)),
+        Line::from(Span::styled(format!("tags   {tags}"), app.theme.muted())),
         Line::raw(""),
         Line::from(Span::styled(notes, app.theme.muted())),
         Line::raw(""),
@@ -226,10 +229,10 @@ fn draw_details(f: &mut Frame, app: &mut App, area: Rect) {
 
     lines.extend([
         Line::raw(""),
-        Line::from(Span::styled("What SSHDeck knows", app.theme.muted())),
-        Line::from(format!("ssh {}", alias)),
-        Line::from(format!("Health: {}", app.health.uptime)),
-        Line::from("Files and tunnels use your system OpenSSH tools."),
+        Line::from(Span::styled("What this screen will do", app.theme.muted())),
+        Line::from(format!("connects with: ssh {}", alias)),
+        Line::from(format!("health: {}", app.health.uptime)),
+        Line::from("Files, tunnels, and commands go through your system OpenSSH."),
     ]);
 
     f.render_widget(

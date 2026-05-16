@@ -92,8 +92,17 @@ pub fn compact(app:&App)->String { if app.ascii { "[>_] SSHDeck".into() } else i
 pub fn options()->[&'static str;3]{["[>_] SSHDeck","╭─ SSHDeck ─╮","󰣀 SSHDeck"]}
 
 pub fn block<'a>(app:&App)->Paragraph<'a>{
-    Paragraph::new(format!("{}\nLocal-first SSH, files, tunnels. Your config stays yours.", compact(app)))
-        .style(app.theme.title())
+    let subtitle = if app.hosts.is_empty() {
+        "Set up one host. SSHDeck will stay out of your ~/.ssh/config."
+    } else {
+        "Your servers, tunnels, files, and notes. All local."
+    };
+    let text = vec![
+        Line::from(vec![Span::styled(compact(app), app.theme.title()), Span::raw("  "), Span::styled("OpenSSH, but calmer", app.theme.muted())]),
+        Line::from(vec![Span::styled(subtitle, app.theme.muted())]),
+    ];
+    Paragraph::new(text)
+        .style(app.theme.surface())
         .block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).border_style(app.theme.border()).title(" SSHDeck "))
 }
 

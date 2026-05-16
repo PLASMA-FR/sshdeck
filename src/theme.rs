@@ -28,16 +28,20 @@ impl Theme {
         }
     }
     pub fn blackout() -> Self {
-        Self { name: ThemeName::Blackout, bg: Color::Rgb(0, 0, 0), fg: Color::Rgb(238, 241, 245), muted: Color::Rgb(115, 121, 132), surface: Color::Rgb(8, 10, 13), overlay: Color::Rgb(15, 18, 23), border_color: Color::Rgb(49, 54, 63), accent: Color::Rgb(86, 182, 255), accent2: Color::Rgb(139, 170, 196), success: Color::Rgb(74, 222, 128), warning: Color::Rgb(245, 190, 88), error: Color::Rgb(248, 113, 113) }
+        Self { name: ThemeName::Blackout, bg: Color::Rgb(12, 11, 10), fg: Color::Rgb(235, 229, 218), muted: Color::Rgb(146, 137, 124), surface: Color::Rgb(20, 18, 16), overlay: Color::Rgb(31, 28, 24), border_color: Color::Rgb(69, 61, 52), accent: Color::Rgb(231, 171, 93), accent2: Color::Rgb(129, 178, 191), success: Color::Rgb(126, 190, 137), warning: Color::Rgb(229, 181, 103), error: Color::Rgb(221, 111, 100) }
     }
+    fn selection_bg(&self) -> Color { match self.name { ThemeName::Blackout => Color::Rgb(60, 45, 30), ThemeName::Cyber => Color::Rgb(10, 43, 62), ThemeName::Minimal => Color::DarkGray } }
+    fn hover_bg(&self) -> Color { match self.name { ThemeName::Blackout => Color::Rgb(78, 56, 34), ThemeName::Cyber => Color::Rgb(18, 55, 77), ThemeName::Minimal => Color::Gray } }
+    fn primary_hover_bg(&self) -> Color { match self.name { ThemeName::Blackout => Color::Rgb(247, 198, 122), ThemeName::Cyber => Color::Rgb(128, 210, 255), ThemeName::Minimal => Color::White } }
+    fn secondary_hover_bg(&self) -> Color { match self.name { ThemeName::Blackout => Color::Rgb(48, 40, 32), ThemeName::Cyber => Color::Rgb(32, 44, 55), ThemeName::Minimal => Color::DarkGray } }
     pub fn title(&self) -> Style { Style::default().fg(self.fg).add_modifier(Modifier::BOLD) }
     pub fn accent(&self) -> Style { Style::default().fg(self.accent).add_modifier(Modifier::BOLD) }
-    pub fn selected(&self) -> Style { Style::default().fg(self.fg).bg(Color::Rgb(10, 43, 62)).add_modifier(Modifier::BOLD) }
-    pub fn hovered(&self) -> Style { Style::default().fg(self.fg).bg(Color::Rgb(18, 55, 77)).add_modifier(Modifier::BOLD | Modifier::UNDERLINED) }
-    pub fn button_primary(&self) -> Style { Style::default().fg(Color::Rgb(5, 12, 18)).bg(self.accent).add_modifier(Modifier::BOLD) }
-    pub fn button_primary_hover(&self) -> Style { Style::default().fg(Color::Black).bg(Color::Rgb(128, 210, 255)).add_modifier(Modifier::BOLD) }
+    pub fn selected(&self) -> Style { Style::default().fg(self.fg).bg(self.selection_bg()).add_modifier(Modifier::BOLD) }
+    pub fn hovered(&self) -> Style { Style::default().fg(self.fg).bg(self.hover_bg()).add_modifier(Modifier::BOLD | Modifier::UNDERLINED) }
+    pub fn button_primary(&self) -> Style { Style::default().fg(self.bg).bg(self.accent).add_modifier(Modifier::BOLD) }
+    pub fn button_primary_hover(&self) -> Style { Style::default().fg(self.bg).bg(self.primary_hover_bg()).add_modifier(Modifier::BOLD) }
     pub fn button_secondary(&self) -> Style { Style::default().fg(self.fg).bg(self.overlay).add_modifier(Modifier::BOLD) }
-    pub fn button_secondary_hover(&self) -> Style { Style::default().fg(self.fg).bg(Color::Rgb(32, 44, 55)).add_modifier(Modifier::BOLD | Modifier::UNDERLINED) }
+    pub fn button_secondary_hover(&self) -> Style { Style::default().fg(self.fg).bg(self.secondary_hover_bg()).add_modifier(Modifier::BOLD | Modifier::UNDERLINED) }
     pub fn button_danger(&self) -> Style { Style::default().fg(self.error).bg(self.overlay).add_modifier(Modifier::BOLD) }
     pub fn button_danger_hover(&self) -> Style { Style::default().fg(Color::Black).bg(self.error).add_modifier(Modifier::BOLD) }
     pub fn muted(&self) -> Style { Style::default().fg(self.muted) }

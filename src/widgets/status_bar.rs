@@ -7,7 +7,7 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect, context: &str) {
     let mode = format!("{:?}", app.mode).to_uppercase();
     let prefix = match app.view {
         crate::app::View::Files => format!(
-            " {} │ {}:{} │ {} selected · {} transfer │ mouse:{} │ ",
+            " {}  {}:{}  {} selected · {} transfer · mouse {}  ",
             mode,
             app.current_host().map(|h| h.alias.as_str()).unwrap_or("no-host"),
             app.remote_path,
@@ -16,14 +16,14 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect, context: &str) {
             if app.mouse_enabled { "on" } else { "off" }
         ),
         crate::app::View::CommandRunner => format!(
-            " {} │ {} on {} {} │ ",
+            " {}  {} on {} {}  ",
             mode,
             app.command_input,
             app.current_host().map(|h| h.alias.as_str()).unwrap_or("no-host"),
             if app.ascii { app.animator.ascii_spinner() } else { app.animator.spinner() }
         ),
         _ => format!(
-            " {} │ {} hosts │ mouse:{} │ ",
+            " {}  {} servers · mouse {}  ",
             mode,
             app.hosts.len(),
             if app.mouse_enabled { "on" } else { "off" }

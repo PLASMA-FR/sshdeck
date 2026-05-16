@@ -5,7 +5,7 @@ pub fn draw(f:&mut Frame, app:&mut App, area:Rect){
     let shell=crate::design::layout::app_shell(area);
     let host=app.current_host().map(|h|h.alias.clone()).unwrap_or_else(||"no-host".into());
     let title=if app.files_dual_pane { "Files · local ↔ remote".to_string() } else { format!("Files · {}:{}", host, app.remote_path) };
-    let subtitle = if let Some(err)=&app.remote_error { format!("Could not open remote files: {err}") } else { format!("Browsing {}:{} · starts at the host home (~). Nothing uploads or deletes without asking first.", host, app.remote_path) };
+    let subtitle = if let Some(err)=&app.remote_error { format!("Could not open this folder: {err}") } else { format!("{}:{} · home-first browsing. Uploads, deletes, and edits ask before touching anything.", host, app.remote_path) };
     f.render_widget(Paragraph::new(subtitle).style(if app.remote_error.is_some(){app.theme.error()}else{app.theme.title()}).block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).border_style(app.theme.border()).title(title)), shell[0]);
     if app.files_dual_pane { draw_dual(f,app,shell[1],&host); } else { draw_three(f,app,shell[1]); }
     if app.mode==crate::app::Mode::Transfer { let r=crate::design::layout::centered(area,58,10); f.render_widget(Clear,r); f.render_widget(transfer_progress::queue(app),r); }
@@ -78,7 +78,7 @@ fn format_entry(app:&App, e:&FileEntry, marker:&str)->String {
 
 fn preview_text(app:&App)->String {
     if let Some(err)=&app.remote_error {
-        return format!("Could not open remote files.\n\nHost: {}\nPath: {}\nReason: {err}\n\nR retry · h parent · ~ home · Esc back", app.current_host().map(|h|h.alias.as_str()).unwrap_or("no-host"), app.remote_path);
+        return format!("Could not open this folder.\n\nHost: {}\nPath: {}\nReason: {err}\n\nR retry · h parent · ~ home · Esc back", app.current_host().map(|h|h.alias.as_str()).unwrap_or("no-host"), app.remote_path);
     }
     let Some(entry)=app.remote_entries.get(app.file_selected) else {
         return "This directory is empty.\n\nn create file/folder · u upload · h parent".into();

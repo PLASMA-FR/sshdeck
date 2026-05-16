@@ -158,7 +158,7 @@ mod tests {
         render(&mut app);
 
         let status_y = 39;
-        let prefix = format!(" NORMAL │ {} hosts │ mouse:on │ ", app.hosts.len());
+        let prefix = format!(" NORMAL  {} servers · mouse on  ", app.hosts.len());
         let first_x = UnicodeWidthStr::width(prefix.as_str()) as u16;
 
         let search = first_rect_for(&app, &ClickTarget::StatusShortcut("/".into())).unwrap();
