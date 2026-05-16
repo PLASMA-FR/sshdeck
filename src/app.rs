@@ -117,7 +117,7 @@ impl App {
             remote_path: "~".into(), local_path: config.files.default_local_dir.clone(), files_dual_pane: false, active_file_pane: 1, selected_files: 0,
             transfer_queue: TransferQueue::default(), command_output: String::new(), managed_aliases, host_form: None, hide_aliases: Vec::new(), config,
         };
-        app.toast(ToastLevel::Success, format!("Imported {} host(s) · mouse:{}", app.hosts.len(), if app.mouse_enabled {"on"} else {"off"}));
+        app.toast(ToastLevel::Success, format!("Found {} host(s). Your SSH config stays untouched.", app.hosts.len()));
         Ok(app)
     }
 
@@ -242,7 +242,21 @@ impl App {
         Ok(())
     }
 
-    fn click_nav(&mut self, g:String) { match g.as_str() { "Tunnels" => self.view=View::Tunnels, "Commands" => self.view=View::CommandRunner, "Logs" => self.view=View::Logs, "All" => { self.view=View::Dashboard; self.filtered=(0..self.hosts.len()).collect(); }, _ => { self.view=View::Dashboard; self.toast(ToastLevel::Info, format!("Filter: {g}")); } } }
+    fn click_nav(&mut self, group: String) {
+        match group.as_str() {
+            "Tunnels" => self.view = View::Tunnels,
+            "Commands" => self.view = View::CommandRunner,
+            "Logs" => self.view = View::Logs,
+            "All" => {
+                self.view = View::Dashboard;
+                self.filtered = (0..self.hosts.len()).collect();
+            }
+            _ => {
+                self.view = View::Dashboard;
+                self.toast(ToastLevel::Info, format!("Showing {group}"));
+            }
+        }
+    }
     fn select_host_by_index(&mut self, host_index:usize) { if let Some(pos)=self.filtered.iter().position(|i| *i==host_index){ self.selected=pos; } }
     fn scroll_target(&mut self, target:Option<ClickTarget>, delta:i16) { match target { Some(ClickTarget::FilePreview) => self.preview_scroll = add_scroll(self.preview_scroll, delta), Some(ClickTarget::FileEntry(_)) => self.file_scroll = add_scroll(self.file_scroll, delta), _ => self.host_scroll = add_scroll(self.host_scroll, delta) } }
     fn open_host_context(&mut self) { if let Some(h)=self.current_host(){ let title=h.alias.clone(); self.context_menu=Some(ContextMenu{title, items:vec![ ("Connect".into(),ClickTarget::HostConnectButton(self.current_host_index().unwrap_or(0))), ("Files".into(),ClickTarget::HostFilesButton(self.current_host_index().unwrap_or(0))), ("Tunnel".into(),ClickTarget::HostTunnelButton(self.current_host_index().unwrap_or(0))), ("Run Command".into(),ClickTarget::StatusShortcut("run".into())), ("Health".into(),ClickTarget::HostHealthButton(self.current_host_index().unwrap_or(0))), ("Edit".into(),ClickTarget::HostEditButton(self.current_host_index().unwrap_or(0))), ("Delete".into(),ClickTarget::ModalButton("delete-host".into())) ]}); } }
@@ -268,7 +282,34 @@ impl App {
         Ok(())
     }
     
-    fn run_palette_action(&mut self, action:&str)->Result<()> { let a=action.to_ascii_lowercase(); self.mode=Mode::Normal; if a.contains("include") { self.toast(ToastLevel::Info,"Add this to ~/.ssh/config: Include ~/.config/sshdeck/ssh_config".into()); } else if a.contains("add host") || a=="a" { self.open_host_form(HostFormMode::Add); } else if a.contains("duplicate") { self.open_host_form(HostFormMode::Duplicate); } else if a.contains("theme") { self.toggle_theme(); } else if a.contains("file") || a=="s" { self.view=View::Files; } else if a.contains("tunnel") || a=="t" { self.view=View::Tunnels; } else if a.contains("health") || a=="h" { self.fetch_health(); } else if a.contains("run") || a=="r" { self.view=View::CommandRunner; } else if a.contains("quit") { self.should_quit=true; } else { self.toast(ToastLevel::Info, format!("Action: {action}")); } Ok(()) }
+    fn run_palette_action(&mut self, action: &str) -> Result<()> {
+        let action = action.to_ascii_lowercase();
+        self.mode = Mode::Normal;
+
+        if action.contains("include") {
+            self.toast(ToastLevel::Info, "Add this line to ~/.ssh/config: Include ~/.config/sshdeck/ssh_config".into());
+        } else if action.contains("add host") || action == "a" {
+            self.open_host_form(HostFormMode::Add);
+        } else if action.contains("duplicate") {
+            self.open_host_form(HostFormMode::Duplicate);
+        } else if action.contains("theme") {
+            self.toggle_theme();
+        } else if action.contains("file") || action == "s" {
+            self.view = View::Files;
+        } else if action.contains("tunnel") || action == "t" {
+            self.view = View::Tunnels;
+        } else if action.contains("health") || action == "h" {
+            self.fetch_health();
+        } else if action.contains("run") || action == "r" {
+            self.view = View::CommandRunner;
+        } else if action.contains("quit") {
+            self.should_quit = true;
+        } else {
+            self.toast(ToastLevel::Info, format!("I don't know that action yet: {action}"));
+        }
+
+        Ok(())
+    }
 
 
     fn open_host_form(&mut self, mode: HostFormMode) {

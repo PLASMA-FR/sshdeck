@@ -20,7 +20,7 @@ pub fn compact(app:&App)->String { if app.ascii { "SSHDeck".into() } else if app
 pub fn options()->[&'static str;3]{["SSHDeck","╭─ SSHDeck ─╮","󰣀 SSHDeck"]}
 
 pub fn block<'a>(app:&App)->Paragraph<'a>{
-    Paragraph::new(format!("{}\nLocal-first SSH command center", compact(app)))
+    Paragraph::new(format!("{}\nLocal-first SSH, files, tunnels. Your config stays yours.", compact(app)))
         .style(app.theme.title())
         .block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).border_style(app.theme.border()).title(" SSHDeck "))
 }

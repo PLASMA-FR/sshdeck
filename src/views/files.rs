@@ -4,8 +4,8 @@ use crate::{app::App, mouse::ClickTarget, widgets::{button, status_bar, transfer
 pub fn draw(f:&mut Frame, app:&mut App, area:Rect){
     let shell=crate::design::layout::app_shell(area);
     let host=app.current_host().map(|h|h.alias.clone()).unwrap_or_else(||"no-host".into());
-    let title=if app.files_dual_pane { format!("󰉋 Files · Transfer Mode") } else { format!("󰉋 Files · {}:{}", host, app.remote_path) };
-    f.render_widget(Paragraph::new(format!("Path: {}                                      Mode: {:?}", app.remote_path, app.mode)).style(app.theme.title()).block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).border_style(app.theme.border()).title(title)), shell[0]);
+    let title=if app.files_dual_pane { "Files · local ↔ remote".to_string() } else { format!("Files · {}:{}", host, app.remote_path) };
+    f.render_widget(Paragraph::new(format!("You are browsing {}. Nothing uploads or deletes without asking first.", app.remote_path)).style(app.theme.title()).block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).border_style(app.theme.border()).title(title)), shell[0]);
     if app.files_dual_pane { draw_dual(f,app,shell[1],&host); } else { draw_three(f,app,shell[1]); }
     if app.mode==crate::app::Mode::Transfer { let r=crate::design::layout::centered(area,58,10); f.render_widget(Clear,r); f.render_widget(transfer_progress::queue(app),r); }
     status_bar::draw(f, app, shell[2], "j/k move · h/l open · Space select · Tab dual-pane · right-click menu");
@@ -32,8 +32,8 @@ modified today
   }
 }
 
-Sensitive file protection:
-.env and private keys show a lock and require confirmation before preview."#;
+SSHDeck will not preview .env files or private keys until you say yes.
+Remote edits create a backup before anything is uploaded back."#;
     let p=Paragraph::new(preview).scroll((app.preview_scroll as u16,0)).wrap(Wrap{trim:false}).block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).border_style(app.theme.inactive_border()).title(" Preview "));
     f.render_widget(p, cols[2]);
     let scrollbar=Scrollbar::default().orientation(ScrollbarOrientation::VerticalRight);
