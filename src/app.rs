@@ -381,8 +381,22 @@ impl App {
     fn handle_command_key(&mut self, key:crossterm::event::KeyEvent)->Result<()> { match key.code { KeyCode::Esc=>self.mode=Mode::Normal, KeyCode::Backspace=>{self.command_input.pop();}, KeyCode::Enter=>{ let cmd=self.command_input.clone(); self.mode=Mode::Normal; if is_dangerous_command(&cmd){ self.toast(ToastLevel::Warning,"Dangerous command blocked pending explicit confirmation".into()); } else { self.command_output=format!("$ {}\n(command mode parsed; remote execution uses ssh in command runner)", cmd); self.toast(ToastLevel::Success,format!("Command accepted: {cmd}")); } }, KeyCode::Char(c)=>self.command_input.push(c), _=>{} } Ok(()) }
 
     pub fn connect_selected(&mut self)->Result<()> {
-        if let Some(h)=self.current_host(){
-            let alias=h.alias.clone(); let args=ssh_args_for(h); let cmd=display_command("ssh", &args); self.toast(ToastLevel::Info,format!("Connecting: {cmd}"));
+        if let Some(h)=self.current_host().cloned(){
+            let alias=h.alias.clone();
+            let mut args = if self.managed_aliases.contains(&alias) {
+                ssh_args_for(&h)
+            } else {
+                // Imported OpenSSH hosts should connect by alias so ssh can use
+                // the user's complete ~/.ssh/config block, including options
+                // SSHDeck does not parse yet (ControlMaster, Match, Include,
+                // RequestTTY, SetEnv, etc.). This is faster and more faithful
+                // than reconstructing a partial command from parsed fields.
+                vec![alias.clone()]
+            };
+            if !args.iter().any(|a| a == "-t" || a == "-tt" || a == "-T") {
+                args.insert(0, "-t".into());
+            }
+            let cmd=display_command("ssh", &args); self.toast(ToastLevel::Info,format!("Connecting: {cmd}"));
             crossterm::terminal::disable_raw_mode()?;
             let mut stdout = std::io::stdout();
             if self.mouse_enabled { crossterm::execute!(stdout, Show, DisableMouseCapture, crossterm::terminal::LeaveAlternateScreen)?; } else { crossterm::execute!(stdout, Show, crossterm::terminal::LeaveAlternateScreen)?; }
