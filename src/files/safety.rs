@@ -1,0 +1,6 @@
+use std::path::Path;
+pub fn shell_quote_path(path:&str)->String{ shell_words::quote(path).to_string() }
+pub fn is_sensitive_path(path:&str)->bool{ let p=path.to_ascii_lowercase(); let name=Path::new(&p).file_name().and_then(|s|s.to_str()).unwrap_or(""); name==".env" || name=="id_rsa" || name=="id_ed25519" || name=="authorized_keys" || p=="/etc/shadow" || p=="/etc/passwd" || p.contains("private_key") || p.ends_with(".pem") || p.ends_with(".key") }
+pub fn is_dangerous_delete_path(path:&str)->bool{ matches!(path, "/"|"/etc"|"/usr"|"/bin"|"/sbin"|"/home"|"/root"|"/var"|"/opt") }
+pub fn validate_delete(path:&str)->Result<(),String>{ if path=="/" { return Err("SSHDeck never allows deleting /".into()); } if is_dangerous_delete_path(path){ return Err(format!("Dangerous path requires typed confirmation: {path}")); } Ok(()) }
+#[cfg(test)] mod tests { use super::*; #[test] fn detects_sensitive_paths(){ assert!(is_sensitive_path("/var/www/.env")); assert!(is_sensitive_path("~/.ssh/id_ed25519")); assert!(!is_sensitive_path("README.md")); } #[test] fn refuses_root_delete(){ assert!(validate_delete("/").is_err()); assert!(validate_delete("/tmp/file").is_ok()); } #[test] fn quotes_remote_paths(){ assert_eq!(shell_quote_path("/tmp/a b"), "'/tmp/a b'"); } }
