@@ -23,6 +23,7 @@ pub enum ClickTarget {
     ModalButton(String),
     Tab(View),
     TransferItem(u64),
+    SettingRow(String),
     TunnelType(String),
     FormField(String),
     ToastClose,

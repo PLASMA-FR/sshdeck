@@ -96,6 +96,7 @@ pub struct App {
     pub active_file_pane: usize,
     pub selected_files: usize,
     pub transfer_queue: TransferQueue,
+    pub settings_selected: usize,
     pub command_output: String,
     pub managed_aliases: Vec<String>,
     pub host_form: Option<HostFormState>,
@@ -127,7 +128,7 @@ impl App {
             should_quit: false, toast: None, health: HealthInfo::empty(),
             tunnel: TunnelConfig { tunnel_type: TunnelType::Local, host_alias: String::new(), bind_address: None, local_port: 8080, target_host: Some("localhost".into()), target_port: Some(80) },
             remote_path: "~".into(), remote_entries: Vec::new(), remote_error: None, file_selected: 0, local_path: config.files.default_local_dir.clone(), files_dual_pane: false, active_file_pane: 1, selected_files: 0,
-            transfer_queue: TransferQueue::default(), command_output: String::new(), managed_aliases, host_form: None, hide_aliases: Vec::new(), render_reset_needed: false, splash_ticks: 0, splash_total_ticks, config,
+            transfer_queue: TransferQueue::default(), settings_selected: 0, command_output: String::new(), managed_aliases, host_form: None, hide_aliases: Vec::new(), render_reset_needed: false, splash_ticks: 0, splash_total_ticks, config,
         };
         app.toast(ToastLevel::Success, format!("Found {} host(s). Your SSH config stays untouched.", app.hosts.len()));
         Ok(app)
@@ -188,6 +189,9 @@ impl App {
             KeyCode::Char('?') => self.view=View::Help,
             KeyCode::Char('/') => { self.mode=Mode::Search; self.search.clear(); },
             KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => { self.mode=Mode::Palette; self.palette_input.clear(); },
+            KeyCode::Down | KeyCode::Char('j') if self.view==View::Settings => self.move_setting_down(),
+            KeyCode::Up | KeyCode::Char('k') if self.view==View::Settings => self.move_setting_up(),
+            KeyCode::Enter | KeyCode::Char(' ') if self.view==View::Settings => self.activate_selected_setting()?,
             KeyCode::Enter if self.view==View::Files => self.open_selected_remote_entry(),
             KeyCode::Down | KeyCode::Char('j') if self.view==View::Files => self.move_file_down(),
             KeyCode::Up | KeyCode::Char('k') if self.view==View::Files => self.move_file_up(),
@@ -206,6 +210,7 @@ impl App {
             KeyCode::Char('r') => { self.view=View::CommandRunner; self.command_input="uptime".into(); },
             KeyCode::Char('h') => self.fetch_health(),
             KeyCode::Char('l') => { self.logs=storage::read_logs(); self.view=View::Logs; },
+            KeyCode::Char(',') => { self.view=View::Settings; self.settings_selected=0; },
             KeyCode::Char('a') => self.open_host_form(HostFormMode::Add),
             KeyCode::Char('e') => self.open_host_form(HostFormMode::Edit),
             KeyCode::Char('D') => self.open_host_form(HostFormMode::Duplicate),
@@ -256,6 +261,7 @@ impl App {
             ClickTarget::FilePreview => self.focused_pane="preview".into(),
             ClickTarget::Breadcrumb(p) => { self.open_remote_path(p); },
             ClickTarget::CommandPaletteItem(a) => self.run_palette_action(&a)?,
+            ClickTarget::SettingRow(id) => self.activate_setting(&id)?,
             ClickTarget::ModalButton(b) if b=="close" || b=="cancel" => { self.context_menu=None; self.host_form=None; self.mode=Mode::Normal; },
             ClickTarget::ModalButton(b) if b=="add-host" => self.open_host_form(HostFormMode::Add),
             ClickTarget::AddHostButton => self.open_host_form(HostFormMode::Add),
@@ -282,6 +288,7 @@ impl App {
             "Tunnels" => self.view = View::Tunnels,
             "Commands" => self.view = View::CommandRunner,
             "Logs" => self.view = View::Logs,
+            "Settings" => self.view = View::Settings,
             "All" => {
                 self.view = View::Dashboard;
                 self.filtered = (0..self.hosts.len()).collect();
@@ -365,6 +372,7 @@ impl App {
             "r" | ":" => { self.view=View::CommandRunner; self.command_input="uptime".into(); },
             "h" => self.fetch_health(),
             "l" => { self.logs=storage::read_logs(); self.view=View::Logs; },
+            "," | "settings" => { self.view=View::Settings; self.settings_selected=0; },
             "esc" => { self.context_menu=None; self.host_form=None; self.mode=Mode::Normal; if self.view != View::Dashboard { self.view=View::Dashboard; } },
             "tab" => { if self.view==View::Files { if self.files_dual_pane { self.active_file_pane=1-self.active_file_pane; } else { self.files_dual_pane=true; } } },
             "ctrl+p" => { self.mode=Mode::Palette; self.palette_input.clear(); },
@@ -386,6 +394,8 @@ impl App {
             self.open_host_form(HostFormMode::Duplicate);
         } else if action.contains("theme") {
             self.toggle_theme();
+        } else if action.contains("setting") {
+            self.view = View::Settings;
         } else if action.contains("file") || action == "s" {
             self.open_files_home();
         } else if action.contains("tunnel") || action == "t" {
@@ -456,6 +466,11 @@ impl App {
     fn confirm_delete_host(&mut self){ if let Some(h)=self.current_host(){ self.context_menu=Some(ContextMenu{title:format!("Delete {}?",h.alias),items:vec![("Delete managed host / hide imported host".into(),ClickTarget::ModalButton("delete-host-confirm".into())), ("Cancel".into(),ClickTarget::ModalButton("cancel".into()))]}); } }
     fn delete_selected_host(&mut self)->Result<()> { let Some(idx)=self.current_host_index() else { return Ok(()); }; let alias=self.hosts[idx].alias.clone(); if self.managed_aliases.contains(&alias){ self.hosts.remove(idx); self.managed_aliases.retain(|a|a!=&alias); let managed:Vec<_>=self.hosts.iter().filter(|h| self.managed_aliases.contains(&h.alias)).cloned().collect(); managed_hosts::save_managed_hosts(&managed_hosts::managed_config_path(), &managed)?; } else { self.hide_aliases.push(alias.clone()); self.hosts.remove(idx); } self.config.hosts.remove(&alias); self.config.save()?; self.filtered=(0..self.hosts.len()).collect(); self.selected=self.selected.min(self.filtered.len().saturating_sub(1)); self.context_menu=None; self.toast(ToastLevel::Warning,format!("Removed {alias} from SSHDeck view")); Ok(()) }
     fn toggle_theme(&mut self){ self.config.ui.theme=match self.config.ui.theme.as_str(){"blackout"=>"minimal".into(),"minimal"=>"cyber".into(),_=>"blackout".into()}; self.theme=Theme::named(&self.config.ui.theme); let _=self.config.save(); self.toast(ToastLevel::Info,format!("Theme: {}",self.config.ui.theme)); }
+    pub fn settings_ids() -> [&'static str; 8] { ["theme", "animations", "unicode", "nerd_font", "mouse", "show_hidden", "default_local_dir", "config_path"] }
+    fn move_setting_down(&mut self) { self.settings_selected = (self.settings_selected + 1).min(Self::settings_ids().len().saturating_sub(1)); }
+    fn move_setting_up(&mut self) { self.settings_selected = self.settings_selected.saturating_sub(1); }
+    fn activate_selected_setting(&mut self) -> Result<()> { let id=Self::settings_ids().get(self.settings_selected).copied().unwrap_or("theme"); self.activate_setting(id) }
+    pub fn activate_setting(&mut self, id:&str) -> Result<()> { match id { "theme" => self.toggle_theme(), "animations" => { self.config.ui.animations=!self.config.ui.animations; self.animator.enabled=self.config.ui.animations; self.toast(ToastLevel::Info,format!("animations {}", if self.config.ui.animations{"on"}else{"off"})); }, "unicode" => { self.config.ui.unicode=!self.config.ui.unicode; self.ascii=!self.config.ui.unicode; self.toast(ToastLevel::Info,format!("unicode {}", if self.config.ui.unicode{"on"}else{"off"})); }, "nerd_font" => { self.config.ui.nerd_font=!self.config.ui.nerd_font; self.toast(ToastLevel::Info,format!("nerd font {}", if self.config.ui.nerd_font{"on"}else{"off"})); }, "mouse" => { self.config.ui.mouse=!self.config.ui.mouse; self.mouse_enabled=self.config.ui.mouse; self.toast(ToastLevel::Info,format!("mouse {}", if self.config.ui.mouse{"on"}else{"off"})); }, "show_hidden" => { self.config.files.show_hidden=!self.config.files.show_hidden; self.toast(ToastLevel::Info,format!("hidden files {}", if self.config.files.show_hidden{"shown"}else{"hidden"})); }, "default_local_dir" => self.toast(ToastLevel::Info,format!("Default local dir: {}", self.config.files.default_local_dir)), "config_path" => self.toast(ToastLevel::Info,format!("Config: {}", self.config.path.display())), _=>{} } self.config.save()?; Ok(()) }
     fn add_include_line(&mut self)->Result<()> { let path=dirs::home_dir().unwrap_or_default().join(".ssh/config"); let line="Include ~/.config/sshdeck/ssh_config"; let changed=managed_hosts::ensure_include_line(&path,line)?; self.context_menu=None; self.toast(ToastLevel::Success, if changed {format!("Added {line} to {} with backup", path.display())} else {"Include line already present".into()}); Ok(()) }
 
     fn handle_search_key(&mut self, key:crossterm::event::KeyEvent)->Result<()> { match key.code { KeyCode::Esc => { self.search.clear(); self.mode=Mode::Normal; self.filter_hosts(); }, KeyCode::Enter => self.mode=Mode::Normal, KeyCode::Backspace => { self.search.pop(); self.filter_hosts(); }, KeyCode::Char(c) => { self.search.push(c); self.filter_hosts(); }, _=>{} } Ok(()) }

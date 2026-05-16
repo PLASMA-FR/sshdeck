@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-const NAV_ITEMS: [&str; 8] = [
+const NAV_ITEMS: [&str; 9] = [
     "All",
     "Favorites",
     "Production",
@@ -18,6 +18,7 @@ const NAV_ITEMS: [&str; 8] = [
     "Tunnels",
     "Commands",
     "Logs",
+    "Settings",
 ];
 
 pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
@@ -114,6 +115,7 @@ fn nav_label(label: &str) -> String {
         "Tunnels" => "tunnels".into(),
         "Commands" => "commands".into(),
         "Logs" => "logbook".into(),
+        "Settings" => "settings".into(),
         _ => label.into(),
     }
 }

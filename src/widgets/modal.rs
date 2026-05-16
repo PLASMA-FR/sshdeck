@@ -5,7 +5,7 @@ fn centered(area:Rect, w:u16, h:u16)->Rect{ crate::design::layout::centered(area
 
 pub fn command_palette(f:&mut Frame, app:&mut App, area:Rect){
     let r=centered(area,56,15); f.render_widget(Clear,r);
-    let actions=["Add Host","Open SSHDeck Files","Create Tunnel","Run Remote Command","Fetch Health","Copy SSH Command","Duplicate Host","Toggle Theme","Quit"];
+    let actions=["Add Host","Open SSHDeck Files","Create Tunnel","Run Remote Command","Fetch Health","Copy SSH Command","Duplicate Host","Toggle Theme","Open Settings","Quit"];
     let mut lines=vec![Line::from(vec![Span::styled("> ",app.theme.muted()),Span::styled(app.palette_input.clone(),app.theme.title())]), Line::raw("")];
     for (i,a) in actions.iter().enumerate(){ let y=r.y+3+i as u16; if y<r.y+r.height-1 { let target=ClickTarget::CommandPaletteItem((*a).into()); app.mouse.register(Rect{x:r.x+1,y,width:r.width-2,height:1}, target.clone()); lines.push(Line::from(button::label(app,a,&target,ButtonKind::Ghost))); } }
     f.render_widget(Paragraph::new(lines).style(app.theme.overlay()).block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).border_style(app.theme.active_border()).title(" Command Palette ")),r);

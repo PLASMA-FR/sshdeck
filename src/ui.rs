@@ -138,6 +138,17 @@ mod tests {
     }
 
     #[test]
+    fn settings_mouse_regions_match_preference_rows() {
+        let mut app = test_app();
+        app.view = View::Settings;
+        render(&mut app);
+
+        assert_eq!(app.mouse.registry.hit(2, 4), Some(ClickTarget::SettingRow("theme".into())));
+        assert_eq!(app.mouse.registry.hit(2, 5), Some(ClickTarget::SettingRow("animations".into())));
+        assert_eq!(app.mouse.registry.hit(2, 9), Some(ClickTarget::SettingRow("show_hidden".into())));
+    }
+
+    #[test]
     fn splash_screen_is_skippable_and_timer_based() {
         let mut app = App::new(
             AppConfig::default(),
