@@ -50,6 +50,8 @@ cargo install sshdeck
 - managed OpenSSH config writer at `~/.config/sshdeck/ssh_config`
 - safe config backups in `~/.config/sshdeck/backups/`
 - full mouse support: click, double-click, right-click, scroll, modal buttons
+- hover highlights for clickable rows, breadcrumbs, status shortcuts, and buttons
+- button-like interactive controls with primary/secondary/danger states
 - fuzzy search
 - groups/tags/favorites
 - SSH config import
@@ -143,8 +145,8 @@ SSHDeck is designed for both terminal power users and people coming from GUI SSH
 
 You can:
 
-- click hosts
-- double-click to connect
+- buttons highlight on hover so clickable areas are obvious
+- click hosts, files, breadcrumbs, status shortcuts, and modal/context-menu buttons
 - right-click for context menus
 - scroll host, file, and preview panels
 - click buttons
@@ -189,7 +191,7 @@ SSHDeck includes a fast keyboard-first remote file manager inspired by Yazi and 
 Features:
 
 - three-column remote navigation
-- mouse selection, scrolling, context menus, and breadcrumb clicks
+- full mouse interaction with hover feedback
 - optional local/remote dual-pane mode
 - preview panel
 - Vim-style keybindings

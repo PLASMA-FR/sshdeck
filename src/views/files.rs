@@ -1,5 +1,5 @@
 use ratatui::{prelude::*, widgets::*};
-use crate::{app::App, mouse::ClickTarget, widgets::{status_bar, transfer_progress}};
+use crate::{app::App, mouse::ClickTarget, widgets::{button, status_bar, transfer_progress}};
 
 pub fn draw(f:&mut Frame, app:&mut App, area:Rect){
     let shell=crate::design::layout::app_shell(area);
@@ -17,9 +17,9 @@ fn draw_three(f:&mut Frame, app:&mut App, area:Rect){
     let parent=["󰉋 var","󰉋 www","󰉋 app"];
     let current=["󰉋 public","󰉋 src","󰉋 node_modules","󰈙 package.json        ◄","󰈙 README.md","󰈙 app.js","󰈙 .env              "];
     let mut parent_items=Vec::new();
-    for (i,p) in parent.iter().enumerate(){ app.mouse.register(Rect{x:cols[0].x+1,y:cols[0].y+2+i as u16,width:cols[0].width-2,height:1}, ClickTarget::Breadcrumb(format!("/{p}"))); parent_items.push(ListItem::new(*p)); }
+    for (i,p) in parent.iter().enumerate(){ let target=ClickTarget::Breadcrumb(format!("/{p}")); app.mouse.register(Rect{x:cols[0].x+1,y:cols[0].y+2+i as u16,width:cols[0].width-2,height:1}, target.clone()); parent_items.push(ListItem::new(*p).style(button::row_style(app,&target,false))); }
     let mut cur_items=Vec::new();
-    for (i,p) in current.iter().enumerate(){ app.mouse.register(Rect{x:cols[1].x+1,y:cols[1].y+2+i as u16,width:cols[1].width-2,height:1}, ClickTarget::FileEntry((*p).into())); cur_items.push(ListItem::new(*p)); }
+    for (i,p) in current.iter().enumerate(){ let target=ClickTarget::FileEntry((*p).into()); app.mouse.register(Rect{x:cols[1].x+1,y:cols[1].y+2+i as u16,width:cols[1].width-2,height:1}, target.clone()); cur_items.push(ListItem::new(*p).style(button::row_style(app,&target,false))); }
     f.render_widget(List::new(parent_items).block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).border_style(app.theme.inactive_border()).title(" Parent ")), cols[0]);
     f.render_widget(List::new(cur_items).block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).border_style(app.theme.border()).title(" Current ")).highlight_symbol("◄ "), cols[1]);
     let preview=r#"package.json
@@ -49,7 +49,7 @@ fn draw_dual(f:&mut Frame, app:&mut App, area:Rect, host:&str){
     for (idx,(title,items,pane)) in panels.iter().enumerate(){
         app.mouse.register(cols[idx], ClickTarget::Pane(title.to_lowercase()));
         let mut rows=Vec::new();
-        for (i,it) in items.iter().enumerate(){ app.mouse.register(Rect{x:cols[idx].x+1,y:cols[idx].y+2+i as u16,width:cols[idx].width-2,height:1}, ClickTarget::FileEntry((*it).into())); rows.push(ListItem::new(*it)); }
+        for (i,it) in items.iter().enumerate(){ let target=ClickTarget::FileEntry((*it).into()); app.mouse.register(Rect{x:cols[idx].x+1,y:cols[idx].y+2+i as u16,width:cols[idx].width-2,height:1}, target.clone()); rows.push(ListItem::new(*it).style(button::row_style(app,&target,false))); }
         f.render_widget(List::new(rows).block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).border_style(if app.active_file_pane==*pane{app.theme.border()}else{app.theme.inactive_border()}).title(format!(" {} · {} ",title, if *pane==0{app.local_path.clone()}else{format!("{}:{}",host,app.remote_path)}))), cols[idx]);
     }
 }

@@ -76,6 +76,7 @@ pub struct App {
     pub mouse_enabled: bool,
     pub mouse: MouseState,
     pub focused_pane: String,
+    pub hover_target: Option<ClickTarget>,
     pub context_menu: Option<ContextMenu>,
     pub should_quit: bool,
     pub toast: Option<Toast>,
@@ -110,7 +111,7 @@ impl App {
             filtered: (0..hosts.len()).collect(), hosts, selected: 0, host_scroll: 0, file_scroll: 0, preview_scroll: 0,
             view: View::Dashboard, mode: Mode::Normal, search: String::new(), command_input: String::new(), palette_input: String::new(),
             logs: storage::read_logs(), theme, animator: Animator::new(config.ui.animations && !options.no_animations),
-            ascii: options.ascii || !config.ui.unicode, mouse_enabled: options.mouse, mouse: MouseState::default(), focused_pane: "hosts".into(), context_menu: None,
+            ascii: options.ascii || !config.ui.unicode, mouse_enabled: options.mouse, mouse: MouseState::default(), focused_pane: "hosts".into(), hover_target: None, context_menu: None,
             should_quit: false, toast: None, health: HealthInfo::empty(),
             tunnel: TunnelConfig { tunnel_type: TunnelType::Local, host_alias: String::new(), bind_address: None, local_port: 8080, target_host: Some("localhost".into()), target_port: Some(80) },
             remote_path: "~".into(), local_path: config.files.default_local_dir.clone(), files_dual_pane: false, active_file_pane: 1, selected_files: 0,
@@ -140,6 +141,7 @@ impl App {
     pub fn on_tick(&mut self) { self.animator.tick(); if let Some(t)=self.toast.as_mut(){ if t.ttl>0 { t.ttl-=1; } else { self.toast=None; } } }
     pub fn toast(&mut self, level:ToastLevel, message:String) { storage::append_log(&message); self.logs.push(message.clone()); self.toast=Some(Toast{message,ttl:40,level}); }
     pub fn icons(&self) -> crate::design::icons::Icons { if self.ascii { crate::design::icons::ascii() } else { crate::design::icons::nerd() } }
+    pub fn is_hovered(&self, target: &ClickTarget) -> bool { self.hover_target.as_ref().is_some_and(|h| h == target) }
 
     fn filter_hosts(&mut self) {
         if self.search.is_empty() { self.filtered = (0..self.hosts.len()).collect(); }
@@ -202,7 +204,7 @@ impl App {
             MouseAction::RightClick(_) => {},
             MouseAction::Scroll{target, delta} => self.scroll_target(target, delta),
             MouseAction::Drag{target, ..} => { if matches!(target, Some(ClickTarget::FileEntry(_))) { self.selected_files = self.selected_files.saturating_add(1); } },
-            MouseAction::Move{..} => {},
+            MouseAction::Move{target, ..} => { self.hover_target = target; },
         }
         Ok(())
     }

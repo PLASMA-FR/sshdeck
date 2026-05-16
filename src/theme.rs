@@ -33,6 +33,13 @@ impl Theme {
     pub fn title(&self) -> Style { Style::default().fg(self.fg).add_modifier(Modifier::BOLD) }
     pub fn accent(&self) -> Style { Style::default().fg(self.accent).add_modifier(Modifier::BOLD) }
     pub fn selected(&self) -> Style { Style::default().fg(self.fg).bg(Color::Rgb(10, 43, 62)).add_modifier(Modifier::BOLD) }
+    pub fn hovered(&self) -> Style { Style::default().fg(self.fg).bg(Color::Rgb(18, 55, 77)).add_modifier(Modifier::BOLD | Modifier::UNDERLINED) }
+    pub fn button_primary(&self) -> Style { Style::default().fg(Color::Rgb(5, 12, 18)).bg(self.accent).add_modifier(Modifier::BOLD) }
+    pub fn button_primary_hover(&self) -> Style { Style::default().fg(Color::Black).bg(Color::Rgb(128, 210, 255)).add_modifier(Modifier::BOLD) }
+    pub fn button_secondary(&self) -> Style { Style::default().fg(self.fg).bg(self.overlay).add_modifier(Modifier::BOLD) }
+    pub fn button_secondary_hover(&self) -> Style { Style::default().fg(self.fg).bg(Color::Rgb(32, 44, 55)).add_modifier(Modifier::BOLD | Modifier::UNDERLINED) }
+    pub fn button_danger(&self) -> Style { Style::default().fg(self.error).bg(self.overlay).add_modifier(Modifier::BOLD) }
+    pub fn button_danger_hover(&self) -> Style { Style::default().fg(Color::Black).bg(self.error).add_modifier(Modifier::BOLD) }
     pub fn muted(&self) -> Style { Style::default().fg(self.muted) }
     pub fn normal(&self) -> Style { Style::default().fg(self.fg).bg(self.bg) }
     pub fn surface(&self) -> Style { Style::default().fg(self.fg).bg(self.surface) }
