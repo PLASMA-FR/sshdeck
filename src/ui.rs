@@ -26,6 +26,7 @@ mod tests {
     use crate::{
         app::{AppOptions, HostFormMode, HostFormState, Mode, View},
         config::{app_config::AppConfig, managed_hosts::HostDraft},
+        files::file_entry::{FileEntry, FileKind},
         mouse::ClickTarget,
         ssh::host::SshHost,
     };
@@ -41,6 +42,12 @@ mod tests {
         ];
         app.filtered = vec![0, 1];
         app.selected = 0;
+        app.remote_entries = vec![
+            FileEntry { name: "src".into(), path: "~/src".into(), kind: FileKind::Directory, size: 0, permissions: "drwxr-xr-x".into(), modified: "May 16 09:00".into(), owner: "demo".into(), group: "demo".into(), selected: false },
+            FileEntry { name: "README.md".into(), path: "~/README.md".into(), kind: FileKind::File, size: 2048, permissions: "-rw-r--r--".into(), modified: "May 16 09:01".into(), owner: "demo".into(), group: "demo".into(), selected: false },
+            FileEntry { name: "logs".into(), path: "~/logs".into(), kind: FileKind::Directory, size: 0, permissions: "drwxr-xr-x".into(), modified: "May 16 09:02".into(), owner: "demo".into(), group: "demo".into(), selected: false },
+            FileEntry { name: "app.conf".into(), path: "~/app.conf".into(), kind: FileKind::File, size: 512, permissions: "-rw-r--r--".into(), modified: "May 16 09:03".into(), owner: "demo".into(), group: "demo".into(), selected: false },
+        ];
         app.toast = None;
         app
     }

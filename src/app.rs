@@ -13,7 +13,7 @@ use crate::{
     animation::Animator,
     config::{app_config::{AppConfig, HostMeta}, managed_hosts::{self, HostDraft, HostValidationLevel, HostValidationMessage}, ssh_config::parse_default_ssh_config, storage},
     event::{Event, EventLoop},
-    files::transfer::TransferQueue,
+    files::{file_entry::{FileEntry, FileKind}, remote_fs, transfer::TransferQueue},
     mouse::{ClickTarget, MouseAction, MouseState},
     ssh::{
         command::{display_command, is_dangerous_command, ssh_args_for, ssh_test_args_for},
@@ -88,6 +88,9 @@ pub struct App {
     pub health: HealthInfo,
     pub tunnel: TunnelConfig,
     pub remote_path: String,
+    pub remote_entries: Vec<FileEntry>,
+    pub remote_error: Option<String>,
+    pub file_selected: usize,
     pub local_path: String,
     pub files_dual_pane: bool,
     pub active_file_pane: usize,
@@ -120,7 +123,7 @@ impl App {
             ascii: options.ascii || !config.ui.unicode, mouse_enabled: options.mouse, mouse: MouseState::default(), focused_pane: "hosts".into(), hover_target: None, context_menu: None,
             should_quit: false, toast: None, health: HealthInfo::empty(),
             tunnel: TunnelConfig { tunnel_type: TunnelType::Local, host_alias: String::new(), bind_address: None, local_port: 8080, target_host: Some("localhost".into()), target_port: Some(80) },
-            remote_path: "~".into(), local_path: config.files.default_local_dir.clone(), files_dual_pane: false, active_file_pane: 1, selected_files: 0,
+            remote_path: "~".into(), remote_entries: Vec::new(), remote_error: None, file_selected: 0, local_path: config.files.default_local_dir.clone(), files_dual_pane: false, active_file_pane: 1, selected_files: 0,
             transfer_queue: TransferQueue::default(), command_output: String::new(), managed_aliases, host_form: None, hide_aliases: Vec::new(), render_reset_needed: false, config,
         };
         app.toast(ToastLevel::Success, format!("Found {} host(s). Your SSH config stays untouched.", app.hosts.len()));
@@ -176,13 +179,20 @@ impl App {
             KeyCode::Char('?') => self.view=View::Help,
             KeyCode::Char('/') => { self.mode=Mode::Search; self.search.clear(); },
             KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => { self.mode=Mode::Palette; self.palette_input.clear(); },
+            KeyCode::Enter if self.view==View::Files => self.open_selected_remote_entry(),
+            KeyCode::Down | KeyCode::Char('j') if self.view==View::Files => self.move_file_down(),
+            KeyCode::Up | KeyCode::Char('k') if self.view==View::Files => self.move_file_up(),
+            KeyCode::Left | KeyCode::Char('h') | KeyCode::Backspace if self.view==View::Files => self.open_remote_path(remote_fs::parent_remote_path(&self.remote_path)),
+            KeyCode::Right | KeyCode::Char('l') if self.view==View::Files => self.open_selected_remote_entry(),
+            KeyCode::Char('~') if self.view==View::Files => self.open_remote_path("~".into()),
+            KeyCode::Char('R') if self.view==View::Files => self.refresh_remote_files(),
             KeyCode::Down | KeyCode::Char('j') => self.move_down(),
             KeyCode::Up | KeyCode::Char('k') => self.move_up(),
             KeyCode::Char('g') => self.selected=0,
             KeyCode::Char('G') => self.selected=self.filtered.len().saturating_sub(1),
             KeyCode::Right | KeyCode::Char('i') => self.view=View::HostDetail,
             KeyCode::Enter => self.connect_selected()?,
-            KeyCode::Char('s') => { self.view=View::Files; self.remote_path="/var/www/app".into(); },
+            KeyCode::Char('s') => self.open_files_home(),
             KeyCode::Char('t') => { if let Some(h)=self.current_host(){ self.tunnel.host_alias=h.alias.clone(); } self.view=View::Tunnels; },
             KeyCode::Char('r') => { self.view=View::CommandRunner; self.command_input="uptime".into(); },
             KeyCode::Char('h') => self.fetch_health(),
@@ -224,13 +234,13 @@ impl App {
             ClickTarget::SidebarGroup(g) => self.click_nav(g),
             ClickTarget::HostRow(i) => self.select_host_by_index(i),
             ClickTarget::HostConnectButton(i) => { self.select_host_by_index(i); self.connect_selected()?; },
-            ClickTarget::HostFilesButton(i) => { self.select_host_by_index(i); self.view=View::Files; },
+            ClickTarget::HostFilesButton(i) => { self.select_host_by_index(i); self.open_files_home(); },
             ClickTarget::HostTunnelButton(i) => { self.select_host_by_index(i); if let Some(h)=self.current_host(){ self.tunnel.host_alias=h.alias.clone(); } self.view=View::Tunnels; },
             ClickTarget::HostHealthButton(i) => { self.select_host_by_index(i); self.fetch_health(); },
             ClickTarget::HostEditButton(i) => { self.select_host_by_index(i); self.open_host_form(HostFormMode::Edit); },
-            ClickTarget::FileEntry(p) => { self.focused_pane="files".into(); self.toast(ToastLevel::Info, format!("Selected {p}")); },
+            ClickTarget::FileEntry(p) => { self.focused_pane="files".into(); if self.view==View::Files { if let Some(pos)=self.remote_entries.iter().position(|e| e.path==p){ self.file_selected=pos; } } self.toast(ToastLevel::Info, format!("Selected {p}")); },
             ClickTarget::FilePreview => self.focused_pane="preview".into(),
-            ClickTarget::Breadcrumb(p) => { self.remote_path=p; self.toast(ToastLevel::Info,"Breadcrumb jump".into()); },
+            ClickTarget::Breadcrumb(p) => { self.open_remote_path(p); },
             ClickTarget::CommandPaletteItem(a) => self.run_palette_action(&a)?,
             ClickTarget::ModalButton(b) if b=="close" || b=="cancel" => { self.context_menu=None; self.host_form=None; self.mode=Mode::Normal; },
             ClickTarget::ModalButton(b) if b=="add-host" => self.open_host_form(HostFormMode::Add),
@@ -269,6 +279,62 @@ impl App {
     }
     fn select_host_by_index(&mut self, host_index:usize) { if let Some(pos)=self.filtered.iter().position(|i| *i==host_index){ self.selected=pos; } }
     fn scroll_target(&mut self, target:Option<ClickTarget>, delta:i16) { match target { Some(ClickTarget::FilePreview) => self.preview_scroll = add_scroll(self.preview_scroll, delta), Some(ClickTarget::FileEntry(_)) => self.file_scroll = add_scroll(self.file_scroll, delta), _ => self.host_scroll = add_scroll(self.host_scroll, delta) } }
+
+    fn open_files_home(&mut self) {
+        self.view = View::Files;
+        self.files_dual_pane = false;
+        self.active_file_pane = 1;
+        self.open_remote_path("~".into());
+    }
+
+    fn refresh_remote_files(&mut self) {
+        self.open_remote_path(self.remote_path.clone());
+    }
+
+    fn open_remote_path(&mut self, path: String) {
+        self.view = View::Files;
+        self.remote_path = if path.trim().is_empty() { "~".into() } else { path };
+        self.file_selected = 0;
+        self.file_scroll = 0;
+        self.preview_scroll = 0;
+        let Some(host) = self.current_host().map(|h| h.alias.clone()) else {
+            self.remote_entries.clear();
+            self.remote_error = Some("No host selected".into());
+            return;
+        };
+        match remote_fs::list_remote(&host, &self.remote_path) {
+            Ok(entries) => {
+                let count = entries.len();
+                self.remote_entries = entries;
+                self.remote_error = None;
+                self.toast(ToastLevel::Success, format!("Opened {host}:{} · {count} item(s)", self.remote_path));
+            }
+            Err(e) => {
+                self.remote_entries.clear();
+                self.remote_error = Some(e.to_string());
+                self.toast(ToastLevel::Error, format!("Could not open {host}:{}", self.remote_path));
+            }
+        }
+    }
+
+    fn move_file_down(&mut self) {
+        if self.file_selected + 1 < self.remote_entries.len() {
+            self.file_selected += 1;
+        }
+    }
+
+    fn move_file_up(&mut self) {
+        self.file_selected = self.file_selected.saturating_sub(1);
+    }
+
+    fn open_selected_remote_entry(&mut self) {
+        let Some(entry) = self.remote_entries.get(self.file_selected).cloned() else { return; };
+        if matches!(entry.kind, FileKind::Directory | FileKind::Symlink) {
+            self.open_remote_path(entry.path);
+        } else {
+            self.toast(ToastLevel::Info, format!("Preview selected: {}", entry.path));
+        }
+    }
     fn open_host_context(&mut self) { if let Some(h)=self.current_host(){ let title=h.alias.clone(); self.context_menu=Some(ContextMenu{title, items:vec![ ("Connect".into(),ClickTarget::HostConnectButton(self.current_host_index().unwrap_or(0))), ("Files".into(),ClickTarget::HostFilesButton(self.current_host_index().unwrap_or(0))), ("Tunnel".into(),ClickTarget::HostTunnelButton(self.current_host_index().unwrap_or(0))), ("Run Command".into(),ClickTarget::StatusShortcut("run".into())), ("Health".into(),ClickTarget::HostHealthButton(self.current_host_index().unwrap_or(0))), ("Edit".into(),ClickTarget::HostEditButton(self.current_host_index().unwrap_or(0))), ("Delete".into(),ClickTarget::ModalButton("delete-host".into())) ]}); } }
     fn open_file_context(&mut self, path:String) { self.context_menu=Some(ContextMenu{title:path.clone(),items:vec![("Preview".into(),ClickTarget::FileEntry(path.clone())),("Edit".into(),ClickTarget::StatusShortcut("edit-file".into())),("Download".into(),ClickTarget::StatusShortcut("download".into())),("Rename".into(),ClickTarget::StatusShortcut("rename".into())),("Copy Path".into(),ClickTarget::Breadcrumb(path)),("Delete".into(),ClickTarget::ModalButton("delete-file".into()))]}); }
 
@@ -278,7 +344,7 @@ impl App {
             "?" => self.view = View::Help,
             "a" => self.open_host_form(HostFormMode::Add),
             "enter" => self.connect_selected()?,
-            "s" => { self.view = View::Files; self.remote_path = "/var/www/app".into(); },
+            "s" => self.open_files_home(),
             "t" => { if let Some(h)=self.current_host(){ self.tunnel.host_alias=h.alias.clone(); } self.view=View::Tunnels; },
             "r" | ":" => { self.view=View::CommandRunner; self.command_input="uptime".into(); },
             "h" => self.fetch_health(),
@@ -305,7 +371,7 @@ impl App {
         } else if action.contains("theme") {
             self.toggle_theme();
         } else if action.contains("file") || action == "s" {
-            self.view = View::Files;
+            self.open_files_home();
         } else if action.contains("tunnel") || action == "t" {
             self.view = View::Tunnels;
         } else if action.contains("health") || action == "h" {
