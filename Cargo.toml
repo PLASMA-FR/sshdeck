@@ -1,0 +1,29 @@
+[package]
+name = "sshdeck"
+version = "0.1.0"
+edition = "2024"
+description = "A beautiful local-first SSH command center for the terminal, built in Rust."
+license = "MIT"
+repository = "https://github.com/sshdeck/sshdeck"
+keywords = ["ssh", "tui", "terminal", "sftp", "ratatui"]
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+anyhow = "1.0"
+color-eyre = "0.6"
+clap = { version = "4.5", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+crossterm = "0.29"
+dirs = "6.0"
+fuzzy-matcher = "0.3"
+regex = "1.11"
+ratatui = "0.29"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.9"
+unicode-width = "0.2"
+shell-words = "1.1"
+sha2 = "0.10"
+
+[dev-dependencies]
+tempfile = "3.15"
