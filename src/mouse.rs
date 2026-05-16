@@ -52,14 +52,15 @@ impl RegionRegistry {
 }
 
 #[derive(Debug, Clone)]
-pub struct MouseState { pub registry: RegionRegistry, last_click: Option<(ClickTarget, Instant)> }
-impl Default for MouseState { fn default() -> Self { Self { registry: RegionRegistry::default(), last_click: None } } }
+pub struct MouseState { pub registry: RegionRegistry, last_click: Option<(ClickTarget, Instant)>, y_offset: i16 }
+impl Default for MouseState { fn default() -> Self { Self { registry: RegionRegistry::default(), last_click: None, y_offset: 1 } } }
 
 impl MouseState {
     pub fn begin_frame(&mut self) { self.registry.clear(); }
     pub fn register(&mut self, rect: Rect, target: ClickTarget) { self.registry.register(rect, target); }
     pub fn resolve(&mut self, event: MouseEvent) -> MouseAction {
-        let target = self.registry.hit(event.column, event.row);
+        let (x, y) = self.normalized_point(event.column, event.row);
+        let target = self.registry.hit(x, y);
         match event.kind {
             MouseEventKind::Down(MouseButton::Left) => {
                 if let Some(t) = target.clone() {
@@ -71,10 +72,23 @@ impl MouseState {
             MouseEventKind::Down(MouseButton::Right) => target.map(MouseAction::RightClick).unwrap_or(MouseAction::Click(ClickTarget::Pane("background".into()))),
             MouseEventKind::ScrollUp => MouseAction::Scroll { target, delta: -3 },
             MouseEventKind::ScrollDown => MouseAction::Scroll { target, delta: 3 },
-            MouseEventKind::Drag(_) => MouseAction::Drag { target, x: event.column, y: event.row },
-            MouseEventKind::Moved => MouseAction::Move { target, x: event.column, y: event.row },
-            _ => MouseAction::Move { target, x: event.column, y: event.row },
+            MouseEventKind::Drag(_) => MouseAction::Drag { target, x, y },
+            MouseEventKind::Moved => MouseAction::Move { target, x, y },
+            _ => MouseAction::Move { target, x, y },
         }
+    }
+
+    fn normalized_point(&self, x: u16, y: u16) -> (u16, u16) {
+        // Some terminals report mouse row one line above Ratatui's rendered cell when
+        // alternate-screen mouse capture is enabled. The observed SSHDeck behavior was
+        // “click selects the row above the cursor”, so normalize all hit-testing one
+        // row downward. Saturating arithmetic keeps top/bottom edges safe.
+        let adjusted_y = if self.y_offset >= 0 {
+            y.saturating_add(self.y_offset as u16)
+        } else {
+            y.saturating_sub((-self.y_offset) as u16)
+        };
+        (x, adjusted_y)
     }
 }
 
@@ -91,5 +105,11 @@ mod tests {
         assert_eq!(r.hit(3,3), Some(ClickTarget::ModalButton("ok".into())));
         assert_eq!(r.hit(1,1), Some(ClickTarget::Pane("base".into())));
         assert_eq!(r.hit(20,20), None);
+    }
+
+    #[test]
+    fn mouse_coordinates_are_shifted_down_to_match_rendered_rows() {
+        let state = MouseState::default();
+        assert_eq!(state.normalized_point(4, 9), (4, 10));
     }
 }
