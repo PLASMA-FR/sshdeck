@@ -1,0 +1,1 @@
+pub fn tmux_attach_command(session: &str) -> String { format!("tmux attach -t {}", shell_words::quote(session)) }
