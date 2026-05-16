@@ -13,37 +13,49 @@ pub fn splash_mark(unicode: bool, nerd: bool, shimmer: &str) -> String {
 
 fn unicode_logo_mark(nerd: bool, shimmer: &str) -> String {
     let prompt = if nerd { "❯_" } else { ">_" };
-    format!(r#"          ╭────────────────────╮
-       ╭──┤  {prompt:<3}               │╮
-       │  │                    ││
-       │  │        ╭──╮        ││
-       │  │       ╱    ╲       ││
-   {shimmer}───┤       ╲    ╱       ││
-       │  │        ╲  ╱        ││
-       │  │         ╲╱         ││
-       │  │   ○──────────◉    ││
-       │  │                    ││
-       │  │   ○──────────◉    ││
-       ╰──┤      SSHDeck      │╯
-          ╰────────────────────╯
-            ╰──────────────────╯"#)
+    format!(r#"              ╭────────────────────────────╮
+          ╭───┤  {prompt:<3} SSHDeck              │╮
+          │   │  ────────────────          ││
+          │   │                            ││
+          │   │         ╭────────╮         ││
+      {shimmer}───┤   │      ╭──┤  ◇◇  ├──╮      ││
+          │   │      │  │ ╲  ╱ │  │      ││
+          │   │      │  │  ╲╱  │  │      ││
+          │   │      │  │  ╱╲  │  │      ││
+          │   │      ╰──┤ ╱  ╲ ├──╯      ││
+          │   │         ╰────────╯        ││
+          │   │                            ││
+          │   │  ○──────────────◉  ssh     ││
+          │   │  │              │          ││
+          │   │  ○──────────────◉  sftp    ││
+          │   │                            ││
+          ╰───┤     No cloud · OpenSSH     │╯
+              ╰────────────────────────────╯
+                ╰──────────────────────────╯
+                  ╰────────────────────────╯"#)
 }
 
 fn ascii_logo_mark(shimmer: &str) -> String {
-    format!(r#"        .--------------------.
-     .--|  >_                |.
-     |  |                    ||
-     |  |        .--.        ||
-     |  |       /    \       ||
- {shimmer}---|       \    /       ||
-     |  |        \  /        ||
-     |  |         \/         ||
-     |  |   o----------o    ||
-     |  |                    ||
-     |  |   o----------o    ||
-     '--|      SSHDeck      |'
-        '--------------------'
-          '------------------'"#)
+    format!(r#"            .----------------------------.
+        .---|  >_ SSHDeck                |.
+        |   |  ----------------          ||
+        |   |                            ||
+        |   |         .--------.         ||
+    {shimmer}---|   |      .--|  **  |--.      ||
+        |   |      |  | \  / |  |      ||
+        |   |      |  |  \/  |  |      ||
+        |   |      |  |  /\  |  |      ||
+        |   |      '--| /  \ |--'      ||
+        |   |         '--------'        ||
+        |   |                            ||
+        |   |  o--------------o  ssh     ||
+        |   |  |              |          ||
+        |   |  o--------------o  sftp    ||
+        |   |                            ||
+        '---|     No cloud / OpenSSH     |'
+            '----------------------------'
+              '--------------------------'
+                '------------------------'"#)
 }
 
 pub fn compact(app:&App)->String { if app.ascii { "[>_] SSHDeck".into() } else if app.config.ui.nerd_font { "󰣀 SSHDeck".into() } else { "▦ SSHDeck".into() } }
@@ -73,18 +85,20 @@ mod tests {
     fn unicode_logo_matches_generated_logo_motifs() {
         let logo = splash_mark(true, false, "◆");
         assert!(logo.contains(">_"));
-        assert!(logo.contains("╭──╮"));
+        assert!(logo.contains("╭────────╮"));
         assert!(logo.contains("╲╱"));
-        assert!(logo.contains("○──────────◉"));
-        assert!(logo.contains("╰──────────────────╯"));
+        assert!(logo.contains("○──────────────◉"));
+        assert!(logo.contains("No cloud · OpenSSH"));
+        assert!(logo.contains("╰──────────────────────────╯"));
     }
 
     #[test]
     fn ascii_logo_keeps_same_motifs_without_unicode() {
         let logo = splash_mark(false, false, "*");
         assert!(logo.contains(">_"));
-        assert!(logo.contains(".--."));
-        assert!(logo.contains("o----------o"));
+        assert!(logo.contains(".--------."));
+        assert!(logo.contains("o--------------o"));
+        assert!(logo.contains("No cloud / OpenSSH"));
         assert!(logo.contains("SSHDeck"));
     }
 }
