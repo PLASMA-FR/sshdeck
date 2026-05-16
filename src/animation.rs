@@ -8,6 +8,7 @@ impl Animator {
     pub fn flow(&self) -> &'static str { ["→","⇒","⇢","⇨"][self.frame % 4] }
     pub fn transfer_dots(&self) -> &'static str { ["●····","·●···","··●··","···●·","····●"][self.frame % 5] }
     pub fn pulse_index(&self) -> usize { self.frame % 6 }
+    pub fn logo_phase(&self) -> usize { if self.enabled { self.frame } else { 0 } }
     pub fn shimmer(&self) -> &'static str { if !self.enabled { "◆" } else { ["◇","◈","◆","◈"][self.frame % 4] } }
     pub fn scanline(&self, width: usize) -> String {
         let width = width.max(8);
