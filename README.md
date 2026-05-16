@@ -1,5 +1,9 @@
 # SSHDeck
 
+<p align="center">
+  <img src="docs/images/logo.png" alt="SSHDeck logo" width="180" />
+</p>
+
 > SSHDeck — Termius + Yazi for your terminal. A clean, local-first SSH command center built in Rust.
 
 No cloud. No account. No Electron. Just your terminal and your existing OpenSSH config.

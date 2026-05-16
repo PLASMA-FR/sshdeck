@@ -1,5 +1,5 @@
 use ratatui::{prelude::*, widgets::*};
-use crate::{app::{App, Mode}, views, widgets::{modal, toast}};
+use crate::{app::{App, Mode}, views, widgets::{logo, modal, toast}};
 
 pub fn draw(f:&mut Frame, app:&mut App){
     app.mouse.begin_frame();
@@ -7,6 +7,13 @@ pub fn draw(f:&mut Frame, app:&mut App){
     if area.width < crate::design::layout::MIN_WIDTH || area.height < crate::design::layout::MIN_HEIGHT {
         let p=Paragraph::new("SSHDeck needs a larger terminal window.\nMinimum recommended size: 100x30.\n\nTip: mouse and keyboard controls are both supported.").alignment(Alignment::Center).block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).title(" ▣ SSHDeck "));
         f.render_widget(p, area); return;
+    }
+    if app.show_splash() {
+        let outer = Layout::vertical([Constraint::Fill(1), Constraint::Length(17), Constraint::Fill(1)]).split(area);
+        let width = if area.width > 74 { 64 } else { area.width.saturating_sub(4) };
+        let inner = Layout::horizontal([Constraint::Fill(1), Constraint::Length(width), Constraint::Fill(1)]).split(outer[1]);
+        f.render_widget(logo::splash(app), inner[1]);
+        return;
     }
     match app.view { crate::app::View::Dashboard=>views::dashboard::draw(f, app, area), crate::app::View::HostDetail=>views::host_detail::draw(f, app, area), crate::app::View::Files=>views::files::draw(f, app, area), crate::app::View::Tunnels=>views::tunnels::draw(f, app, area), crate::app::View::CommandRunner=>views::command_runner::draw(f, app, area), crate::app::View::Logs=>views::logs::draw(f, app, area), crate::app::View::Settings=>views::settings::draw(f, app, area), crate::app::View::Help=>views::help::draw(f, app, area) }
     if app.mode==Mode::Palette { modal::command_palette(f, app, area); }
@@ -128,6 +135,21 @@ mod tests {
 
         assert_eq!(app.mouse.registry.hit(33, 15), Some(ClickTarget::CommandPaletteItem("Add Host".into())));
         assert_eq!(app.mouse.registry.hit(33, 16), Some(ClickTarget::CommandPaletteItem("Open SSHDeck Files".into())));
+    }
+
+    #[test]
+    fn splash_screen_is_skippable_and_timer_based() {
+        let mut app = App::new(
+            AppConfig::default(),
+            AppOptions { no_animations: false, ascii: true, mouse: true },
+        ).unwrap();
+        assert!(app.show_splash());
+        render(&mut app);
+        assert!(app.mouse.registry.regions().is_empty());
+        app.on_tick();
+        assert!(app.show_splash());
+        app.dismiss_splash();
+        assert!(!app.show_splash());
     }
 
     #[test]

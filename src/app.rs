@@ -101,6 +101,8 @@ pub struct App {
     pub host_form: Option<HostFormState>,
     pub hide_aliases: Vec<String>,
     pub render_reset_needed: bool,
+    pub splash_ticks: u8,
+    pub splash_total_ticks: u8,
 }
 
 impl App {
@@ -116,6 +118,7 @@ impl App {
             }
         }
         let theme = Theme::named(&config.ui.theme);
+        let splash_total_ticks = if config.ui.animations && !options.no_animations { 18 } else { 0 };
         let mut app = Self {
             filtered: (0..hosts.len()).collect(), hosts, selected: 0, host_scroll: 0, file_scroll: 0, preview_scroll: 0,
             view: View::Dashboard, mode: Mode::Normal, search: String::new(), command_input: String::new(), palette_input: String::new(),
@@ -124,7 +127,7 @@ impl App {
             should_quit: false, toast: None, health: HealthInfo::empty(),
             tunnel: TunnelConfig { tunnel_type: TunnelType::Local, host_alias: String::new(), bind_address: None, local_port: 8080, target_host: Some("localhost".into()), target_port: Some(80) },
             remote_path: "~".into(), remote_entries: Vec::new(), remote_error: None, file_selected: 0, local_path: config.files.default_local_dir.clone(), files_dual_pane: false, active_file_pane: 1, selected_files: 0,
-            transfer_queue: TransferQueue::default(), command_output: String::new(), managed_aliases, host_form: None, hide_aliases: Vec::new(), render_reset_needed: false, config,
+            transfer_queue: TransferQueue::default(), command_output: String::new(), managed_aliases, host_form: None, hide_aliases: Vec::new(), render_reset_needed: false, splash_ticks: 0, splash_total_ticks, config,
         };
         app.toast(ToastLevel::Success, format!("Found {} host(s). Your SSH config stays untouched.", app.hosts.len()));
         Ok(app)
@@ -151,7 +154,9 @@ impl App {
 
     pub fn current_host(&self) -> Option<&SshHost> { self.filtered.get(self.selected).and_then(|i| self.hosts.get(*i)) }
     pub fn current_host_index(&self) -> Option<usize> { self.filtered.get(self.selected).copied() }
-    pub fn on_tick(&mut self) { self.animator.tick(); if let Some(t)=self.toast.as_mut(){ if t.ttl>0 { t.ttl-=1; } else { self.toast=None; } } }
+    pub fn show_splash(&self) -> bool { self.splash_ticks < self.splash_total_ticks }
+    pub fn dismiss_splash(&mut self) { self.splash_ticks = self.splash_total_ticks; }
+    pub fn on_tick(&mut self) { self.animator.tick(); if self.show_splash() { self.splash_ticks = self.splash_ticks.saturating_add(1); } if let Some(t)=self.toast.as_mut(){ if t.ttl>0 { t.ttl-=1; } else { self.toast=None; } } }
     pub fn toast(&mut self, level:ToastLevel, message:String) { storage::append_log(&message); self.logs.push(message.clone()); self.toast=Some(Toast{message,ttl:40,level}); }
     pub fn icons(&self) -> crate::design::icons::Icons { if self.ascii { crate::design::icons::ascii() } else { crate::design::icons::nerd() } }
     pub fn is_hovered(&self, target: &ClickTarget) -> bool { self.hover_target.as_ref().is_some_and(|h| h == target) }
@@ -170,6 +175,10 @@ impl App {
 
     pub fn handle_key(&mut self, key:crossterm::event::KeyEvent) -> Result<()> {
         self.context_menu = None;
+        if self.show_splash() {
+            self.dismiss_splash();
+            if !matches!(key.code, KeyCode::Char('q')) { return Ok(()); }
+        }
         if self.mode==Mode::Search { return self.handle_search_key(key); }
         if self.mode==Mode::Palette { return self.handle_palette_key(key); }
         if self.mode==Mode::Command { return self.handle_command_key(key); }
@@ -213,6 +222,10 @@ impl App {
     }
 
     pub fn handle_mouse(&mut self, event: MouseEvent) -> Result<()> {
+        if self.show_splash() {
+            self.dismiss_splash();
+            return Ok(());
+        }
         let action = self.mouse.resolve(event);
         match action {
             MouseAction::Click(target) => self.dispatch_click(target)?,
