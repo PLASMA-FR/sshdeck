@@ -1,10 +1,12 @@
 # SSHDeck
 
-> Termius for the terminal — a beautiful local-first SSH command center built in Rust.
+> SSHDeck — Termius + Yazi for your terminal. A clean, local-first SSH command center built in Rust.
 
 No cloud. No account. No Electron. Just your terminal and your existing OpenSSH config.
 
 SSHDeck is a fast keyboard-first and mouse-friendly terminal SSH command center for managing SSH hosts, tunnels, commands, health checks, logs, and Yazi-style remote file workflows.
+
+![SSHDeck black theme dashboard](docs/images/blackout-dashboard.png)
 
 ![SSHDeck dashboard screenshot](docs/images/dashboard.png)
 
@@ -12,6 +14,7 @@ SSHDeck is a fast keyboard-first and mouse-friendly terminal SSH command center 
 
 GIF placeholders:
 
+- Add-host modal screenshot: `docs/images/add-host.png`
 - Dashboard GIF: `docs/images/dashboard.gif`
 - Mouse interaction GIF: `docs/images/mouse.gif`
 - Files/SFTP GIF: `docs/images/files.gif`
@@ -43,6 +46,9 @@ cargo install sshdeck
 ## Features
 
 - SSH host dashboard
+- in-app add/edit/duplicate/delete host management
+- managed OpenSSH config writer at `~/.config/sshdeck/ssh_config`
+- safe config backups in `~/.config/sshdeck/backups/`
 - full mouse support: click, double-click, right-click, scroll, modal buttons
 - fuzzy search
 - groups/tags/favorites
@@ -55,7 +61,7 @@ cargo install sshdeck
 - transfer queue
 - safe remote editing with backups design
 - command palette
-- themes: default dark, cyber, minimal
+- themes: blackout default, cyber, minimal
 - Unicode animations with ASCII/no-animation fallback
 - local-first config
 
@@ -64,6 +70,18 @@ cargo install sshdeck
 SSHDeck is built around a simple idea: your terminal should have a polished SSH command center without requiring a cloud account, Electron, or a rewritten SSH stack.
 
 It reads `~/.ssh/config`, stores SSHDeck-only metadata in `~/.config/sshdeck/config.toml`, and uses your existing `ssh`, `scp`, and `sftp` tools where appropriate.
+
+For normal use you do not need to manually edit SSH config. Press `a` or click `[+ Add Host]` to create a host inside SSHDeck. App-created hosts are written to:
+
+```text
+~/.config/sshdeck/ssh_config
+```
+
+SSHDeck then offers to add this safe OpenSSH include line to `~/.ssh/config` after creating a timestamped backup:
+
+```sshconfig
+Include ~/.config/sshdeck/ssh_config
+```
 
 Tagline:
 
@@ -87,6 +105,37 @@ Tagline:
 | Yazi-like remote file browser | Yes | Partial | No |
 | Safe remote editing backups | Yes | Partial | Manual |
 | Open source | Yes | No | Yes |
+
+## Host management
+
+Create hosts without leaving the app:
+
+- press `a` or click `[+ Add Host]`
+- fill alias, hostname/IP, user, port, identity file, group, tags, and notes
+- use Tab / Shift+Tab or mouse clicks to move between fields
+- click `[ Test ]` or focus it and press Enter to run a safe SSH check:
+  `ssh -o BatchMode=yes -o ConnectTimeout=5 <target> exit`
+- click `[ Save ]`, press Enter on Save, or press Ctrl+s
+- SSHDeck writes OpenSSH host blocks to `~/.config/sshdeck/ssh_config`
+- tags, groups, favorites, and notes stay in `~/.config/sshdeck/config.toml`
+
+Editing and deletion:
+
+- `e` or the Edit button opens the selected host in the form
+- `Shift+d` or the command palette duplicates the selected host with `-copy`
+- `d` opens a delete confirmation
+- imported hosts are hidden/metadata-removed rather than destructively removed from your original `~/.ssh/config`
+- managed hosts are removed from SSHDeck's managed config after backup and confirmation
+
+Validation:
+
+- Alias and Hostname/IP are required
+- Port must be numeric
+- User defaults to the current local username when available
+- Identity file is optional, but SSHDeck warns if the path does not exist
+- Alias spaces and alias conflicts are shown as warnings
+
+![Add Host modal](docs/images/add-host.png)
 
 ## Mouse-first and keyboard-first
 
@@ -206,7 +255,7 @@ Example:
 
 ```toml
 [ui]
-theme = "default"
+theme = "blackout"
 animations = true
 unicode = true
 nerd_font = true
@@ -269,6 +318,8 @@ sshdeck --no-animations
 sshdeck --no-mouse
 sshdeck --mouse
 sshdeck --ascii
+sshdeck --quick root@1.2.3.4
+sshdeck root@1.2.3.4
 sshdeck import
 sshdeck doctor
 ```

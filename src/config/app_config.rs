@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 fn default_true() -> bool { true }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UiConfig { pub theme: String, pub animations: bool, pub unicode: bool, pub nerd_font: bool, #[serde(default = "default_true")] pub mouse: bool }
-impl Default for UiConfig { fn default() -> Self { Self { theme: "default".into(), animations: true, unicode: true, nerd_font: true, mouse: true } } }
+impl Default for UiConfig { fn default() -> Self { Self { theme: "blackout".into(), animations: true, unicode: true, nerd_font: true, mouse: true } } }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FilesConfig { pub default_local_dir: String, pub show_hidden: bool, pub preview_max_bytes: u64 }
 impl Default for FilesConfig { fn default() -> Self { Self { default_local_dir: "~/Downloads".into(), show_hidden: false, preview_max_bytes: 1_048_576 } } }

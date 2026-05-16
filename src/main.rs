@@ -38,6 +38,10 @@ struct Cli {
     mouse: bool,
     #[arg(long)]
     ascii: bool,
+    #[arg(long)]
+    quick: Option<String>,
+    #[arg(value_name = "TARGET")]
+    target: Option<String>,
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -51,6 +55,12 @@ enum Commands {
 fn main() -> Result<()> {
     color_eyre::install().ok();
     let cli = Cli::parse();
+    if let Some(target) = cli.quick.clone().or_else(|| cli.target.clone()) {
+        println!("SSHDeck quick connect: {target}");
+        let status = std::process::Command::new("ssh").arg(&target).status()?;
+        if !status.success() { std::process::exit(status.code().unwrap_or(1)); }
+        return Ok(());
+    }
     match cli.command {
         Some(Commands::Doctor) => {
             let cfg = AppConfig::load_or_default(cli.config.clone())?;

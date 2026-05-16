@@ -7,7 +7,7 @@ use ratatui::{backend::Backend, Terminal};
 
 use crate::{
     animation::Animator,
-    config::{app_config::AppConfig, ssh_config::parse_default_ssh_config, storage},
+    config::{app_config::{AppConfig, HostMeta}, managed_hosts::{self, HostDraft, HostValidationLevel, HostValidationMessage}, ssh_config::parse_default_ssh_config, storage},
     event::{Event, EventLoop},
     files::transfer::TransferQueue,
     mouse::{ClickTarget, MouseAction, MouseState},
@@ -28,12 +28,30 @@ pub struct AppOptions { pub no_animations: bool, pub ascii: bool, pub mouse: boo
 pub enum View { Dashboard, HostDetail, Files, Tunnels, CommandRunner, Logs, Settings, Help }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Mode { Normal, Search, Visual, Command, Rename, Confirm, Transfer, Palette }
+pub enum Mode { Normal, Search, Visual, Command, Rename, Confirm, Transfer, Palette, HostForm }
 
 #[derive(Debug, Clone)]
 pub struct Toast { pub message:String, pub ttl:u8, pub level: ToastLevel }
 #[derive(Debug, Clone)]
 pub enum ToastLevel { Success, Warning, Error, Info }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HostFormMode { Add, Edit, Duplicate }
+
+#[derive(Debug, Clone)]
+pub struct HostFormState {
+    pub mode: HostFormMode,
+    pub draft: HostDraft,
+    pub field: usize,
+    pub messages: Vec<HostValidationMessage>,
+    pub test_result: Option<String>,
+    pub original_alias: Option<String>,
+}
+
+impl HostFormState {
+    pub fn title(&self) -> &'static str { match self.mode { HostFormMode::Add => "Add Host", HostFormMode::Edit => "Edit Host", HostFormMode::Duplicate => "Duplicate Host" } }
+    pub fn field_count(&self) -> usize { 11 }
+}
 
 #[derive(Debug, Clone)]
 pub struct ContextMenu { pub title:String, pub items:Vec<(String, ClickTarget)> }
@@ -70,11 +88,18 @@ pub struct App {
     pub selected_files: usize,
     pub transfer_queue: TransferQueue,
     pub command_output: String,
+    pub managed_aliases: Vec<String>,
+    pub host_form: Option<HostFormState>,
+    pub hide_aliases: Vec<String>,
 }
 
 impl App {
     pub fn new(config: AppConfig, options: AppOptions) -> Result<Self> {
         let mut hosts = parse_default_ssh_config().unwrap_or_default();
+        let managed_path = managed_hosts::managed_config_path();
+        let managed_hosts_loaded = managed_hosts::read_managed_hosts(&managed_path).unwrap_or_default();
+        let managed_aliases: Vec<String> = managed_hosts_loaded.iter().map(|h| h.alias.clone()).collect();
+        hosts.extend(managed_hosts_loaded);
         for h in &mut hosts {
             if let Some(meta) = config.hosts.get(&h.alias) {
                 h.tags = meta.tags.clone(); h.group = meta.group.clone(); h.favorite = meta.favorite; h.notes = meta.notes.clone();
@@ -89,7 +114,7 @@ impl App {
             should_quit: false, toast: None, health: HealthInfo::empty(),
             tunnel: TunnelConfig { tunnel_type: TunnelType::Local, host_alias: String::new(), bind_address: None, local_port: 8080, target_host: Some("localhost".into()), target_port: Some(80) },
             remote_path: "~".into(), local_path: config.files.default_local_dir.clone(), files_dual_pane: false, active_file_pane: 1, selected_files: 0,
-            transfer_queue: TransferQueue::default(), command_output: String::new(), config,
+            transfer_queue: TransferQueue::default(), command_output: String::new(), managed_aliases, host_form: None, hide_aliases: Vec::new(), config,
         };
         app.toast(ToastLevel::Success, format!("Imported {} host(s) · mouse:{}", app.hosts.len(), if app.mouse_enabled {"on"} else {"off"}));
         Ok(app)
@@ -133,6 +158,7 @@ impl App {
         if self.mode==Mode::Search { return self.handle_search_key(key); }
         if self.mode==Mode::Palette { return self.handle_palette_key(key); }
         if self.mode==Mode::Command { return self.handle_command_key(key); }
+        if self.mode==Mode::HostForm { return self.handle_host_form_key(key); }
         match key.code {
             KeyCode::Char('q') => { if self.view==View::Dashboard { self.should_quit=true } else { self.view=View::Dashboard; } },
             KeyCode::Char('?') => self.view=View::Help,
@@ -149,9 +175,10 @@ impl App {
             KeyCode::Char('r') => { self.view=View::CommandRunner; self.command_input="uptime".into(); },
             KeyCode::Char('h') => self.fetch_health(),
             KeyCode::Char('l') => { self.logs=storage::read_logs(); self.view=View::Logs; },
-            KeyCode::Char('a') => self.open_form("Add Host"),
-            KeyCode::Char('e') => self.open_form("Edit Host"),
-            KeyCode::Char('d') => self.toast(ToastLevel::Warning,"Delete requires confirmation; not destructive in MVP".into()),
+            KeyCode::Char('a') => self.open_host_form(HostFormMode::Add),
+            KeyCode::Char('e') => self.open_host_form(HostFormMode::Edit),
+            KeyCode::Char('D') => self.open_host_form(HostFormMode::Duplicate),
+            KeyCode::Char('d') => self.confirm_delete_host(),
             KeyCode::Char(':') if self.view==View::Files => { self.mode=Mode::Command; self.command_input.clear(); },
             KeyCode::Tab if self.view==View::Files => { if self.files_dual_pane { self.active_file_pane=1-self.active_file_pane; } else { self.files_dual_pane=true; } },
             KeyCode::BackTab if self.view==View::Files => { self.files_dual_pane=true; self.active_file_pane=1-self.active_file_pane; },
@@ -188,18 +215,24 @@ impl App {
             ClickTarget::HostFilesButton(i) => { self.select_host_by_index(i); self.view=View::Files; },
             ClickTarget::HostTunnelButton(i) => { self.select_host_by_index(i); if let Some(h)=self.current_host(){ self.tunnel.host_alias=h.alias.clone(); } self.view=View::Tunnels; },
             ClickTarget::HostHealthButton(i) => { self.select_host_by_index(i); self.fetch_health(); },
-            ClickTarget::HostEditButton(i) => { self.select_host_by_index(i); self.open_form("Edit Host"); },
+            ClickTarget::HostEditButton(i) => { self.select_host_by_index(i); self.open_host_form(HostFormMode::Edit); },
             ClickTarget::FileEntry(p) => { self.focused_pane="files".into(); self.toast(ToastLevel::Info, format!("Selected {p}")); },
             ClickTarget::FilePreview => self.focused_pane="preview".into(),
             ClickTarget::Breadcrumb(p) => { self.remote_path=p; self.toast(ToastLevel::Info,"Breadcrumb jump".into()); },
             ClickTarget::CommandPaletteItem(a) => self.run_palette_action(&a)?,
-            ClickTarget::ModalButton(b) if b=="close" || b=="cancel" => { self.context_menu=None; self.mode=Mode::Normal; },
-            ClickTarget::ModalButton(b) if b=="save-host" => { self.toast(ToastLevel::Success,"Host form saved locally (MVP)".into()); self.context_menu=None; },
+            ClickTarget::ModalButton(b) if b=="close" || b=="cancel" => { self.context_menu=None; self.host_form=None; self.mode=Mode::Normal; },
+            ClickTarget::ModalButton(b) if b=="add-host" => self.open_host_form(HostFormMode::Add),
+            ClickTarget::ModalButton(b) if b=="import-hosts" => self.toast(ToastLevel::Info,"Import reads ~/.ssh/config automatically on startup".into()),
+            ClickTarget::ModalButton(b) if b=="test-host" => self.test_host_form(),
+            ClickTarget::ModalButton(b) if b=="save-host" => self.save_host_form()?,
+            ClickTarget::ModalButton(b) if b=="delete-host" => self.confirm_delete_host(),
+            ClickTarget::ModalButton(b) if b=="delete-host-confirm" => self.delete_selected_host()?,
+            ClickTarget::ModalButton(b) if b=="add-include" => self.add_include_line()?,
             ClickTarget::ModalButton(_) => {},
             ClickTarget::Tab(v) => self.view=v,
             ClickTarget::TransferItem(id) => self.toast(ToastLevel::Info, format!("Transfer #{id} selected")),
             ClickTarget::TunnelType(t) => { self.tunnel.tunnel_type = match t.as_str(){"remote"=>TunnelType::Remote,"dynamic"=>TunnelType::Dynamic,_=>TunnelType::Local}; },
-            ClickTarget::FormField(f) => self.focused_pane=f,
+            ClickTarget::FormField(f) => { let map=["alias","hostname/ip","user","port","identity-file","group","tags","notes"]; if let Some(form)=self.host_form.as_mut(){ if let Some(pos)=map.iter().position(|m| *m==f){ form.field=pos; } } self.focused_pane=f; },
             ClickTarget::ToastClose => self.toast=None,
             ClickTarget::StatusShortcut(s) => self.run_palette_action(&s)?,
             ClickTarget::Pane(p) => self.focused_pane=p,
@@ -212,8 +245,63 @@ impl App {
     fn scroll_target(&mut self, target:Option<ClickTarget>, delta:i16) { match target { Some(ClickTarget::FilePreview) => self.preview_scroll = add_scroll(self.preview_scroll, delta), Some(ClickTarget::FileEntry(_)) => self.file_scroll = add_scroll(self.file_scroll, delta), _ => self.host_scroll = add_scroll(self.host_scroll, delta) } }
     fn open_host_context(&mut self) { if let Some(h)=self.current_host(){ let title=h.alias.clone(); self.context_menu=Some(ContextMenu{title, items:vec![ ("Connect".into(),ClickTarget::HostConnectButton(self.current_host_index().unwrap_or(0))), ("Files".into(),ClickTarget::HostFilesButton(self.current_host_index().unwrap_or(0))), ("Tunnel".into(),ClickTarget::HostTunnelButton(self.current_host_index().unwrap_or(0))), ("Run Command".into(),ClickTarget::StatusShortcut("run".into())), ("Health".into(),ClickTarget::HostHealthButton(self.current_host_index().unwrap_or(0))), ("Edit".into(),ClickTarget::HostEditButton(self.current_host_index().unwrap_or(0))), ("Delete".into(),ClickTarget::ModalButton("delete-host".into())) ]}); } }
     fn open_file_context(&mut self, path:String) { self.context_menu=Some(ContextMenu{title:path.clone(),items:vec![("Preview".into(),ClickTarget::FileEntry(path.clone())),("Edit".into(),ClickTarget::StatusShortcut("edit-file".into())),("Download".into(),ClickTarget::StatusShortcut("download".into())),("Rename".into(),ClickTarget::StatusShortcut("rename".into())),("Copy Path".into(),ClickTarget::Breadcrumb(path)),("Delete".into(),ClickTarget::ModalButton("delete-file".into()))]}); }
-    fn open_form(&mut self, title:&str){ self.context_menu=Some(ContextMenu{title:title.into(),items:vec![("Alias        [ web-prod-1              ]".into(),ClickTarget::FormField("alias".into())),("HostName     [ 192.168.1.20            ]".into(),ClickTarget::FormField("hostname".into())),("User         [ root                    ]".into(),ClickTarget::FormField("user".into())),("Port         [ 22                      ]".into(),ClickTarget::FormField("port".into())),("IdentityFile [ ~/.ssh/id_ed25519       ]".into(),ClickTarget::FormField("identity".into())),("Tags         [ production,web,docker   ]".into(),ClickTarget::FormField("tags".into())),("[ Save ]".into(),ClickTarget::ModalButton("save-host".into())),("[ Cancel ]".into(),ClickTarget::ModalButton("cancel".into()))]}); }
-    fn run_palette_action(&mut self, action:&str)->Result<()> { let a=action.to_ascii_lowercase(); self.mode=Mode::Normal; if a.contains("file") || a=="s" { self.view=View::Files; } else if a.contains("tunnel") || a=="t" { self.view=View::Tunnels; } else if a.contains("health") || a=="h" { self.fetch_health(); } else if a.contains("run") || a=="r" { self.view=View::CommandRunner; } else if a.contains("quit") { self.should_quit=true; } else { self.toast(ToastLevel::Info, format!("Action: {action}")); } Ok(()) }
+    
+    fn run_palette_action(&mut self, action:&str)->Result<()> { let a=action.to_ascii_lowercase(); self.mode=Mode::Normal; if a.contains("include") { self.toast(ToastLevel::Info,"Add this to ~/.ssh/config: Include ~/.config/sshdeck/ssh_config".into()); } else if a.contains("add host") || a=="a" { self.open_host_form(HostFormMode::Add); } else if a.contains("duplicate") { self.open_host_form(HostFormMode::Duplicate); } else if a.contains("theme") { self.toggle_theme(); } else if a.contains("file") || a=="s" { self.view=View::Files; } else if a.contains("tunnel") || a=="t" { self.view=View::Tunnels; } else if a.contains("health") || a=="h" { self.fetch_health(); } else if a.contains("run") || a=="r" { self.view=View::CommandRunner; } else if a.contains("quit") { self.should_quit=true; } else { self.toast(ToastLevel::Info, format!("Action: {action}")); } Ok(()) }
+
+
+    fn open_host_form(&mut self, mode: HostFormMode) {
+        let (draft, original_alias) = match mode {
+            HostFormMode::Add => (HostDraft::default(), None),
+            HostFormMode::Edit => self.current_host().map(|h| (HostDraft::from_host(h), Some(h.alias.clone()))).unwrap_or((HostDraft::default(), None)),
+            HostFormMode::Duplicate => self.current_host().map(|h| { let mut d=HostDraft::from_host(h); d.alias=format!("{}-copy", h.alias); (d, None) }).unwrap_or((HostDraft::default(), None)),
+        };
+        self.host_form = Some(HostFormState { mode, draft, field: 0, messages: Vec::new(), test_result: None, original_alias });
+        self.mode = Mode::HostForm;
+        self.context_menu = None;
+    }
+
+    fn handle_host_form_key(&mut self, key:crossterm::event::KeyEvent)->Result<()> {
+        use crossterm::event::KeyModifiers;
+        if key.modifiers.contains(KeyModifiers::CONTROL) && matches!(key.code, KeyCode::Char('s')) { return self.save_host_form(); }
+        let Some(form)=self.host_form.as_mut() else { self.mode=Mode::Normal; return Ok(()); };
+        match key.code {
+            KeyCode::Esc => { self.host_form=None; self.mode=Mode::Normal; },
+            KeyCode::Tab => form.field = (form.field + 1) % form.field_count(),
+            KeyCode::BackTab => form.field = if form.field==0 { form.field_count()-1 } else { form.field-1 },
+            KeyCode::Up => form.field = form.field.saturating_sub(1),
+            KeyCode::Down => form.field = (form.field + 1).min(form.field_count()-1),
+            KeyCode::Enter => match form.field { 8 => self.test_host_form(), 9 => self.save_host_form()?, 10 => { self.host_form=None; self.mode=Mode::Normal; }, _ => form.field = (form.field + 1) % form.field_count() },
+            KeyCode::Backspace => self.edit_host_field_backspace(),
+            KeyCode::Char(c) => self.edit_host_field_char(c),
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn edit_host_field_char(&mut self, c: char) { if let Some(form)=self.host_form.as_mut(){ match form.field { 0=>form.draft.alias.push(c), 1=>form.draft.hostname.push(c), 2=>form.draft.user.push(c), 3=>form.draft.port.push(c), 4=>form.draft.identity_file.push(c), 5=>form.draft.group.push(c), 6=>form.draft.tags.push(c), 7=>form.draft.notes.push(c), _=>{} } } }
+    fn edit_host_field_backspace(&mut self) { if let Some(form)=self.host_form.as_mut(){ match form.field { 0=>{form.draft.alias.pop();}, 1=>{form.draft.hostname.pop();}, 2=>{form.draft.user.pop();}, 3=>{form.draft.port.pop();}, 4=>{form.draft.identity_file.pop();}, 5=>{form.draft.group.pop();}, 6=>{form.draft.tags.pop();}, 7=>{form.draft.notes.pop();}, _=>{} } } }
+
+    fn existing_aliases_for_form(&self)->Vec<String>{ self.hosts.iter().map(|h|h.alias.clone()).filter(|a| self.host_form.as_ref().and_then(|f|f.original_alias.as_ref()).map(|o|o!=a).unwrap_or(true)).collect() }
+    fn validate_current_form(&mut self)->bool{ let aliases=self.existing_aliases_for_form(); let Some(form)=self.host_form.as_mut() else { return false; }; form.messages=managed_hosts::validate_host_draft(&form.draft,&aliases); !form.messages.iter().any(|m| m.level==HostValidationLevel::Error) }
+    fn test_host_form(&mut self){ if !self.validate_current_form(){ return; } let Some(form)=self.host_form.as_mut() else { return; }; let target=if !form.draft.alias.trim().is_empty(){ form.draft.alias.trim().to_string() } else { format!("{}@{}", form.draft.user.trim(), form.draft.hostname.trim()) }; let status=std::process::Command::new("ssh").args(["-o","BatchMode=yes","-o","ConnectTimeout=5",&target,"exit"]).status(); form.test_result=Some(match status { Ok(s) if s.success()=>"✓ Connection successful".into(), Ok(s)=>format!("✗ Connection failed: ssh exited with {}", s), Err(e)=>format!("✗ Connection failed: {e}") }); }
+    fn save_host_form(&mut self)->Result<()> { if !self.validate_current_form(){ return Ok(()); } let Some(form)=self.host_form.clone() else { return Ok(()); }; let Some(host)=form.draft.to_host() else { return Ok(()); };
+        let original=form.original_alias.clone();
+        self.hosts.retain(|h| Some(&h.alias)!=original.as_ref() && h.alias != host.alias);
+        self.hosts.push(host.clone());
+        if !self.managed_aliases.contains(&host.alias){ self.managed_aliases.push(host.alias.clone()); }
+        let managed:Vec<_>=self.hosts.iter().filter(|h| self.managed_aliases.contains(&h.alias)).cloned().collect();
+        managed_hosts::save_managed_hosts(&managed_hosts::managed_config_path(), &managed)?;
+        self.config.hosts.insert(host.alias.clone(), HostMeta{ tags: host.tags.clone(), group: host.group.clone(), favorite: host.favorite, notes: host.notes.clone() });
+        self.config.save()?;
+        self.filtered=(0..self.hosts.len()).collect(); self.selected=self.hosts.iter().position(|h|h.alias==host.alias).unwrap_or(0);
+        self.host_form=None; self.mode=Mode::Normal;
+        self.context_menu=Some(ContextMenu{title:"Managed config saved".into(),items:vec![("Add Include automatically".into(),ClickTarget::ModalButton("add-include".into())), ("Show command: Include ~/.config/sshdeck/ssh_config".into(),ClickTarget::StatusShortcut("show-include".into())), ("Later".into(),ClickTarget::ModalButton("cancel".into()))]});
+        self.toast(ToastLevel::Success, format!("Saved host {} to {}", host.alias, managed_hosts::managed_config_path().display()));
+        Ok(()) }
+    fn confirm_delete_host(&mut self){ if let Some(h)=self.current_host(){ self.context_menu=Some(ContextMenu{title:format!("Delete {}?",h.alias),items:vec![("Delete managed host / hide imported host".into(),ClickTarget::ModalButton("delete-host-confirm".into())), ("Cancel".into(),ClickTarget::ModalButton("cancel".into()))]}); } }
+    fn delete_selected_host(&mut self)->Result<()> { let Some(idx)=self.current_host_index() else { return Ok(()); }; let alias=self.hosts[idx].alias.clone(); if self.managed_aliases.contains(&alias){ self.hosts.remove(idx); self.managed_aliases.retain(|a|a!=&alias); let managed:Vec<_>=self.hosts.iter().filter(|h| self.managed_aliases.contains(&h.alias)).cloned().collect(); managed_hosts::save_managed_hosts(&managed_hosts::managed_config_path(), &managed)?; } else { self.hide_aliases.push(alias.clone()); self.hosts.remove(idx); } self.config.hosts.remove(&alias); self.config.save()?; self.filtered=(0..self.hosts.len()).collect(); self.selected=self.selected.min(self.filtered.len().saturating_sub(1)); self.context_menu=None; self.toast(ToastLevel::Warning,format!("Removed {alias} from SSHDeck view")); Ok(()) }
+    fn toggle_theme(&mut self){ self.config.ui.theme=match self.config.ui.theme.as_str(){"blackout"=>"minimal".into(),"minimal"=>"cyber".into(),_=>"blackout".into()}; self.theme=Theme::named(&self.config.ui.theme); let _=self.config.save(); self.toast(ToastLevel::Info,format!("Theme: {}",self.config.ui.theme)); }
+    fn add_include_line(&mut self)->Result<()> { let path=dirs::home_dir().unwrap_or_default().join(".ssh/config"); let line="Include ~/.config/sshdeck/ssh_config"; let changed=managed_hosts::ensure_include_line(&path,line)?; self.context_menu=None; self.toast(ToastLevel::Success, if changed {format!("Added {line} to {} with backup", path.display())} else {"Include line already present".into()}); Ok(()) }
 
     fn handle_search_key(&mut self, key:crossterm::event::KeyEvent)->Result<()> { match key.code { KeyCode::Esc => { self.search.clear(); self.mode=Mode::Normal; self.filter_hosts(); }, KeyCode::Enter => self.mode=Mode::Normal, KeyCode::Backspace => { self.search.pop(); self.filter_hosts(); }, KeyCode::Char(c) => { self.search.push(c); self.filter_hosts(); }, _=>{} } Ok(()) }
     fn handle_palette_key(&mut self, key:crossterm::event::KeyEvent)->Result<()> { match key.code { KeyCode::Esc => self.mode=Mode::Normal, KeyCode::Enter => { let q=self.palette_input.clone(); self.run_palette_action(&q)?; }, KeyCode::Backspace=>{self.palette_input.pop();}, KeyCode::Char(c)=>self.palette_input.push(c), _=>{} } Ok(()) }

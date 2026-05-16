@@ -12,6 +12,7 @@ pub fn draw(f:&mut Frame, app:&mut App){
     if app.mode==Mode::Palette { modal::command_palette(f, app, area); }
     if app.mode==Mode::Search { modal::search(f, app, area); }
     if app.mode==Mode::Command { modal::command_mode(f, app, area); }
+    if app.mode==Mode::HostForm { modal::host_form(f, app, area); }
     if app.context_menu.is_some() { modal::context_menu(f, app, area); }
     if let Some(t)=&app.toast { toast::draw(f, app, t, area); }
 }
