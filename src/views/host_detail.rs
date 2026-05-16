@@ -1,5 +1,5 @@
 use ratatui::{prelude::*, widgets::*}; use crate::{app::App, ssh::command::ssh_command_for, widgets::{server_meter,status_bar}};
-pub fn draw(f:&mut Frame, app:&App, area:Rect){ let chunks=Layout::vertical([Constraint::Length(3),Constraint::Min(5),Constraint::Length(1)]).split(area); f.render_widget(Paragraph::new("SSHDeck Host Detail").style(app.theme.title()).block(Block::bordered().border_style(app.theme.border())), chunks[0]); let cols=Layout::horizontal([Constraint::Percentage(55),Constraint::Percentage(45)]).split(chunks[1]); let text=if let Some(h)=app.current_host(){ format!("Alias: {}
+pub fn draw(f:&mut Frame, app:&mut App, area:Rect){ let chunks=Layout::vertical([Constraint::Length(3),Constraint::Min(5),Constraint::Length(1)]).split(area); f.render_widget(Paragraph::new("SSHDeck Host Detail").style(app.theme.title()).block(Block::bordered().border_style(app.theme.border())), chunks[0]); let cols=Layout::horizontal([Constraint::Percentage(55),Constraint::Percentage(45)]).split(chunks[1]); let text=if let Some(h)=app.current_host(){ format!("Alias: {}
 HostName: {}
 User: {}
 Port: {}

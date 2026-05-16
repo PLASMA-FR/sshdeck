@@ -4,13 +4,18 @@
 
 No cloud. No account. No Electron. Just your terminal and your existing OpenSSH config.
 
-SSHDeck is a fast, keyboard-first terminal SSH command center for managing SSH hosts, tunnels, commands, health checks, logs, and Yazi-style remote file workflows.
+SSHDeck is a fast keyboard-first and mouse-friendly terminal SSH command center for managing SSH hosts, tunnels, commands, health checks, logs, and Yazi-style remote file workflows.
 
 ![SSHDeck dashboard screenshot](docs/images/dashboard.png)
 
 ## Animated demo
 
-GIF placeholder: `docs/images/demo.gif`
+GIF placeholders:
+
+- Dashboard GIF: `docs/images/dashboard.gif`
+- Mouse interaction GIF: `docs/images/mouse.gif`
+- Files/SFTP GIF: `docs/images/files.gif`
+- Tunnel builder GIF: `docs/images/tunnel.gif`
 
 ## Quick install
 
@@ -38,6 +43,7 @@ cargo install sshdeck
 ## Features
 
 - SSH host dashboard
+- full mouse support: click, double-click, right-click, scroll, modal buttons
 - fuzzy search
 - groups/tags/favorites
 - SSH config import
@@ -72,13 +78,32 @@ Tagline:
 | No account required | Yes | No | Yes |
 | Reads ~/.ssh/config | Yes | Partial | Yes |
 | Fuzzy host search | Yes | Yes | No |
+| Mouse support | Yes | Yes | No |
+| Right-click context menus | Yes | Yes | No |
 | Port forwarding UI | Yes | Yes | No |
 | Remote command runner | Yes | Partial | Manual |
 | Server health dashboard | Yes | No | Manual |
 | SFTP file manager | Yes | Yes | Manual |
-| Yazi-style SFTP browser | Yes | Partial | No |
+| Yazi-like remote file browser | Yes | Partial | No |
 | Safe remote editing backups | Yes | Partial | Manual |
 | Open source | Yes | No | Yes |
+
+## Mouse-first and keyboard-first
+
+SSHDeck is designed for both terminal power users and people coming from GUI SSH apps.
+
+You can:
+
+- click hosts
+- double-click to connect
+- right-click for context menus
+- scroll host, file, and preview panels
+- click buttons
+- click breadcrumbs
+- use full keyboard shortcuts
+- combine mouse navigation with Vim-style keyboard commands
+
+Mouse support is implemented through crossterm mouse capture and a maintainable hit-test registry (`src/mouse.rs`). Each render pass registers clickable regions such as sidebar groups, host cards, quick action buttons, file entries, breadcrumbs, command palette items, modal buttons, tabs, and transfer items.
 
 ## Keyboard shortcuts
 
@@ -115,6 +140,7 @@ SSHDeck includes a fast keyboard-first remote file manager inspired by Yazi and 
 Features:
 
 - three-column remote navigation
+- mouse selection, scrolling, context menus, and breadcrumb clicks
 - optional local/remote dual-pane mode
 - preview panel
 - Vim-style keybindings
@@ -184,6 +210,7 @@ theme = "default"
 animations = true
 unicode = true
 nerd_font = true
+mouse = true
 
 [hosts.web-prod-1]
 tags = ["production", "web"]
@@ -239,12 +266,32 @@ sshdeck --help
 sshdeck --version
 sshdeck --config ./config.toml
 sshdeck --no-animations
+sshdeck --no-mouse
+sshdeck --mouse
 sshdeck --ascii
 sshdeck import
 sshdeck doctor
 ```
 
-`sshdeck doctor` checks OpenSSH binaries, SSH config parsing, managed config path, SSH directory state, identity files referenced by hosts, Unicode/Nerd Font settings, app config validity, and the default local files directory.
+`sshdeck doctor` checks terminal mouse reporting, mouse config, terminal size, color support, Unicode/Nerd Font settings, OpenSSH binaries, SSH config parsing, managed config path, SSH directory state, identity files referenced by hosts, app config validity, and the default local files directory.
+
+## Screenshot and GIF plan
+
+1. Dashboard:
+   - click host
+   - right-click menu
+   - double-click connect
+2. Files:
+   - open files
+   - click folder
+   - scroll preview
+   - right-click file
+3. Tunnels:
+   - click tunnel builder
+   - choose local/remote/dynamic tunnel type
+   - create local forward
+
+The target demo should communicate, without narration, that SSHDeck is a beautiful local-first SSH command center with keyboard and mouse workflows for SSH, files, tunnels, commands, and health.
 
 ## Roadmap
 

@@ -1,8 +1,8 @@
 use std::time::{Duration, Instant};
-use crossterm::event::{self, Event as CrosstermEvent, KeyEvent};
+use crossterm::event::{self, Event as CrosstermEvent, KeyEvent, MouseEvent};
 
 #[derive(Debug, Clone)]
-pub enum Event { Tick, Key(KeyEvent), Resize(u16, u16) }
+pub enum Event { Tick, Key(KeyEvent), Mouse(MouseEvent), Resize(u16, u16) }
 
 pub struct EventLoop { tick_rate: Duration, last_tick: Instant }
 impl EventLoop {
@@ -12,6 +12,7 @@ impl EventLoop {
         if event::poll(timeout)? {
             match event::read()? {
                 CrosstermEvent::Key(k) => return Ok(Event::Key(k)),
+                CrosstermEvent::Mouse(m) => return Ok(Event::Mouse(m)),
                 CrosstermEvent::Resize(w,h) => return Ok(Event::Resize(w,h)),
                 _ => {}
             }

@@ -1,0 +1,3 @@
+use ratatui::style::Color;
+#[derive(Debug, Clone, Copy)] pub struct SemanticPalette{pub bg:Color,pub surface:Color,pub overlay:Color,pub text:Color,pub muted:Color,pub accent:Color,pub accent2:Color,pub success:Color,pub warning:Color,pub error:Color,pub info:Color}
+pub fn default_dark()->SemanticPalette{ SemanticPalette{bg:Color::Rgb(15,18,28),surface:Color::Rgb(28,33,48),overlay:Color::Rgb(42,49,69),text:Color::Rgb(220,225,245),muted:Color::Rgb(116,126,158),accent:Color::Rgb(125,170,255),accent2:Color::Rgb(193,132,255),success:Color::Rgb(115,220,150),warning:Color::Rgb(238,190,105),error:Color::Rgb(255,105,135),info:Color::Rgb(105,210,255)} }

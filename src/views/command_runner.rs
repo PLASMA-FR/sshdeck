@@ -1,5 +1,5 @@
 use ratatui::{prelude::*, widgets::*}; use crate::{app::App, widgets::status_bar};
-pub fn draw(f:&mut Frame, app:&App, area:Rect){ let chunks=Layout::vertical([Constraint::Length(8),Constraint::Min(5),Constraint::Length(1)]).split(area); let cmds="Safe commands:
+pub fn draw(f:&mut Frame, app:&mut App, area:Rect){ let chunks=Layout::vertical([Constraint::Length(8),Constraint::Min(5),Constraint::Length(1)]).split(area); let cmds="Safe commands:
   uptime
   df -h
   free -h
