@@ -20,7 +20,7 @@ pub fn host_form(f:&mut Frame, app:&mut App, area:Rect){
     let fields=[("Alias",form.draft.alias.clone()),("Hostname/IP",form.draft.hostname.clone()),("User",form.draft.user.clone()),("Port",form.draft.port.clone()),("Identity File",form.draft.identity_file.clone()),("Group",form.draft.group.clone()),("Tags",form.draft.tags.clone()),("Notes",form.draft.notes.clone())];
     let mut lines=Vec::new();
     for (i,(label,value)) in fields.iter().enumerate(){
-        let y=r.y+2+i as u16;        let target=ClickTarget::FormField(label.to_ascii_lowercase().replace(' ', "-"));
+        let y=r.y+1+i as u16;        let target=ClickTarget::FormField(label.to_ascii_lowercase().replace(' ', "-"));
         app.mouse.register(Rect{x:r.x+16,y,width:r.width.saturating_sub(20),height:1}, target.clone());
         let marker=if form.field==i {"›"} else if app.is_hovered(&target) {"•"} else {" "};
         let value_style=if app.is_hovered(&target){app.theme.hovered()}else if form.field==i{app.theme.selected()}else{app.theme.normal()};
@@ -29,7 +29,7 @@ pub fn host_form(f:&mut Frame, app:&mut App, area:Rect){
     lines.push(Line::raw(""));
     let buttons=[("Test","test-host",8usize),("Save","save-host",9usize),("Cancel","cancel",10usize)];
     let mut btn_spans=vec![Span::raw("              ")];
-    for (label,id,idx) in buttons { let x=r.x+16+(idx as u16-8)*12; let y=r.y+11; let target=ClickTarget::ModalButton(id.into()); app.mouse.register(Rect{x,y,width:11,height:1},target.clone()); let kind=match label { "Save"=>ButtonKind::Primary, "Cancel"=>ButtonKind::Secondary, _=>ButtonKind::Ghost }; btn_spans.push(button::label(app,label,&target,kind)); }
+    for (label,id,idx) in buttons { let x=r.x+16+(idx as u16-8)*12; let y=r.y+10; let target=ClickTarget::ModalButton(id.into()); app.mouse.register(Rect{x,y,width:11,height:1},target.clone()); let kind=match label { "Save"=>ButtonKind::Primary, "Cancel"=>ButtonKind::Secondary, _=>ButtonKind::Ghost }; btn_spans.push(button::label(app,label,&target,kind)); }
     lines.push(Line::from(btn_spans));
     if let Some(result)=&form.test_result { lines.push(Line::raw("")); lines.push(Line::from(result.clone())); }
     for m in form.messages.iter().take(4){ let style=if m.level==HostValidationLevel::Error{app.theme.error()}else{app.theme.warning()}; lines.push(Line::from(Span::styled(format!("{} {}", if m.level==HostValidationLevel::Error{"✗"}else{"⚠"}, m.message), style))); }

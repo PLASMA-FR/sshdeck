@@ -49,11 +49,12 @@ impl RegionRegistry {
     pub fn register(&mut self, rect: Rect, target: ClickTarget) { if rect.width > 0 && rect.height > 0 { self.regions.push(Region { rect, target }); } }
     pub fn hit(&self, x: u16, y: u16) -> Option<ClickTarget> { self.regions.iter().rev().find(|r| contains(r.rect, x, y)).map(|r| r.target.clone()) }
     pub fn len(&self) -> usize { self.regions.len() }
+    pub fn regions(&self) -> &[Region] { &self.regions }
 }
 
 #[derive(Debug, Clone)]
-pub struct MouseState { pub registry: RegionRegistry, last_click: Option<(ClickTarget, Instant)>, y_offset: i16 }
-impl Default for MouseState { fn default() -> Self { Self { registry: RegionRegistry::default(), last_click: None, y_offset: 1 } } }
+pub struct MouseState { pub registry: RegionRegistry, last_click: Option<(ClickTarget, Instant)> }
+impl Default for MouseState { fn default() -> Self { Self { registry: RegionRegistry::default(), last_click: None } } }
 
 impl MouseState {
     pub fn begin_frame(&mut self) { self.registry.clear(); }
@@ -79,16 +80,10 @@ impl MouseState {
     }
 
     fn normalized_point(&self, x: u16, y: u16) -> (u16, u16) {
-        // Some terminals report mouse row one line above Ratatui's rendered cell when
-        // alternate-screen mouse capture is enabled. The observed SSHDeck behavior was
-        // “click selects the row above the cursor”, so normalize all hit-testing one
-        // row downward. Saturating arithmetic keeps top/bottom edges safe.
-        let adjusted_y = if self.y_offset >= 0 {
-            y.saturating_add(self.y_offset as u16)
-        } else {
-            y.saturating_sub((-self.y_offset) as u16)
-        };
-        (x, adjusted_y)
+        // Crossterm and Ratatui both use zero-based terminal cell coordinates.
+        // Keep this as a single normalization point so terminal-specific quirks
+        // can be handled deliberately later without hiding per-widget row bugs.
+        (x, y)
     }
 }
 
@@ -108,8 +103,8 @@ mod tests {
     }
 
     #[test]
-    fn mouse_coordinates_are_shifted_down_to_match_rendered_rows() {
+    fn mouse_coordinates_match_ratatui_zero_based_cells_without_global_offset() {
         let state = MouseState::default();
-        assert_eq!(state.normalized_point(4, 9), (4, 10));
+        assert_eq!(state.normalized_point(4, 9), (4, 9));
     }
 }
