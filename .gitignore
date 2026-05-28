@@ -1,8 +1,26 @@
 /target/
 **/*.rs.bk
-.DS_Store
+
+# Environment and secrets
 .env
-*.key
+.env.*
 *.pem
+*.key
+id_rsa
 id_rsa*
+id_ed25519
 id_ed25519*
+
+# OS/editor junk
+.DS_Store
+
+# Local build/cache output
+tmp/
+.cache/
+website/.vitepress/cache/
+website/.vitepress/dist/
+node_modules/
+npm-debug.log*
+
+# Backups
+*.bak

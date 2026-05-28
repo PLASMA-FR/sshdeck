@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 description = "A beautiful local-first SSH command center for the terminal, built in Rust."
 license = "MIT"
-repository = "https://github.com/sshdeck/sshdeck"
+repository = "https://github.com/PLASMA-FR/sshdeck"
 keywords = ["ssh", "tui", "terminal", "sftp", "ratatui"]
 categories = ["command-line-utilities", "development-tools"]
 

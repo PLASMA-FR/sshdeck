@@ -1,0 +1,14 @@
+{
+  "name": "sshdeck-docs-workspace",
+  "private": true,
+  "scripts": {
+    "docs:dev": "vitepress dev website --host 0.0.0.0",
+    "docs:build": "vitepress build website",
+    "docs:preview": "vitepress preview website --host 0.0.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "latest",
+    "vitepress": "latest",
+    "three": "latest"
+  }
+}
