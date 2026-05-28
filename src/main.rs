@@ -59,7 +59,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     if let Some(target) = cli.quick.clone().or_else(|| cli.target.clone()) {
         println!("SSHDeck quick connect: {target}");
-        let status = std::process::Command::new("ssh").arg(&target).status()?;
+        let status = std::process::Command::new("ssh").arg("--").arg(&target).status()?;
         if !status.success() { std::process::exit(status.code().unwrap_or(1)); }
         return Ok(());
     }

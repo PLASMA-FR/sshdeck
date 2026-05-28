@@ -2,12 +2,12 @@ use std::process::Command;
 
 use super::{
     file_entry::{parse_ls_line, FileEntry},
-    safety::shell_quote_path,
+    safety::{is_sensitive_path, shell_quote_path},
 };
 use crate::{ssh::command::ssh_noninteractive_args_for, ssh::host::SshHost};
 
 pub fn list_remote(host: &str, path: &str) -> anyhow::Result<Vec<FileEntry>> {
-    list_remote_with_args(&[host.to_string()], path)
+    list_remote_with_args(&["--".to_string(), host.to_string()], path)
 }
 
 pub fn list_remote_host(host: &SshHost, path: &str) -> anyhow::Result<Vec<FileEntry>> {
@@ -38,11 +38,18 @@ fn list_remote_with_args(ssh_args: &[String], path: &str) -> anyhow::Result<Vec<
 }
 
 pub fn preview_remote(host: &str, path: &str, max_bytes: u64) -> anyhow::Result<String> {
+    if is_sensitive_path(path) {
+        anyhow::bail!("Sensitive file preview blocked until explicit confirmation");
+    }
     let path_expr = remote_shell_path(path);
     let cmd = format!(
-        "test $(wc -c < {path_expr}) -le {max_bytes} && sed -n '1,200p' {path_expr} || printf 'Preview skipped: file too large'"
+        "size=$(wc -c < {path_expr}) || exit 1; if [ \"$size\" -le {max_bytes} ]; then sed -n '1,200p' -- {path_expr}; else printf 'Preview skipped: file too large'; fi"
     );
-    let out = Command::new("ssh").arg(host).arg(cmd).output()?;
+    let out = Command::new("ssh").arg("--").arg(host).arg(cmd).output()?;
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        anyhow::bail!(if stderr.is_empty() { "remote preview failed".into() } else { stderr });
+    }
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
@@ -87,6 +94,20 @@ pub fn parent_remote_path(path: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+
+    #[test]
+    fn preview_blocks_sensitive_paths_before_ssh() {
+        let err = preview_remote("example.invalid", "~/.ssh/id_ed25519", 1024).unwrap_err();
+        assert!(err.to_string().contains("Sensitive file preview blocked"));
+    }
+
+    #[test]
+    fn raw_host_aliases_are_separated_from_ssh_options() {
+        let err = list_remote("-oProxyCommand=evil", "~").unwrap_err();
+        let msg = err.to_string();
+        assert!(!msg.contains("ProxyCommand"));
+    }
 
     #[test]
     fn home_paths_expand_remotely() {

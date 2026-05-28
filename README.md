@@ -1,30 +1,46 @@
 # SSHDeck
 
-<p align="center">
-  <img src="docs/images/logo.png" alt="SSHDeck logo" width="180" />
-</p>
+> Termius for the terminal — a local-first SSH command center built in Rust.
 
-> Termius + Yazi for your terminal.
+No cloud. No account. No Electron. Just your terminal and your existing OpenSSH config.
 
-A clean, local-first SSH command center built in Rust.
-
-No cloud. No account. No Electron. Just your terminal and OpenSSH.
-
-SSHDeck helps you manage servers, remote files, tunnels, commands, health checks, and SSH workflows without cloud accounts, Electron, tracking, or lock-in.
+SSHDeck is an early open-source MVP. It already provides a polished Rust/ratatui shell for SSH host management, OpenSSH launching, managed host config, command palettes, broad mouse support, and a prototype Yazi-style remote file browser. Some headline workflows are intentionally marked partial below instead of being oversold.
 
 ![SSHDeck black theme dashboard](docs/images/blackout-dashboard.png)
-
 ![SSHDeck dashboard screenshot](docs/images/dashboard.png)
 
-## Animated demo
+## Status
 
-GIF placeholders:
+Implemented today:
 
-- Add-host modal screenshot: `docs/images/add-host.png`
-- Dashboard GIF: `docs/images/dashboard.gif`
-- Mouse interaction GIF: `docs/images/mouse.gif`
-- Files/SFTP GIF: `docs/images/files.gif`
-- Tunnel builder GIF: `docs/images/tunnel.gif`
+- reads hosts from `~/.ssh/config` at startup
+- creates SSHDeck-managed hosts in `~/.config/sshdeck/ssh_config`
+- offers an optional backed-up `Include ~/.config/sshdeck/ssh_config` addition
+- add/edit/duplicate/delete managed hosts from the TUI
+- fuzzy host search
+- keyboard-first dashboard and help screens
+- broad mouse support: hover, click, double-click, right-click context menus, scrolling, modal buttons
+- launches system `ssh` and restores the terminal afterward
+- tunnel command generation for local, remote, and dynamic forwards
+- command runner UI prototype with dangerous-command detection
+- health panel placeholder with intended safe command list
+- SSHDeck Files prototype: remote directory listing over `ssh`, three-column browsing, metadata preview, hidden-files toggle, refresh, breadcrumbs, transfer queue modal, and dual-pane UI placeholder
+- settings screen for theme, animation, Unicode/Nerd Font, mouse, hidden files, and config path
+- local logs with redaction for sensitive path markers and identity-file arguments
+- doctor command for local environment checks
+- unit tests for parsing, command generation, safety helpers, transfer queue state, and mouse hit regions
+
+Not implemented yet:
+
+- real SFTP/scp upload/download execution from the Files UI
+- safe remote editing with backup/upload flow
+- remote file delete/rename/new-file operations
+- real command runner execution from the TUI
+- remote health command execution/parsing
+- persistent imported-host hiding across restarts
+- full bookmarks UI
+- true local-pane filesystem model in dual-pane Files mode
+- live starting/stopping of tunnels from the TUI
 
 ## Quick install
 
@@ -52,22 +68,18 @@ cargo install sshdeck
 ## Features
 
 - SSH host dashboard
-- in-app add/edit/duplicate/delete host management
+- in-app add/edit/duplicate/delete host management for SSHDeck-managed hosts
 - managed OpenSSH config writer at `~/.config/sshdeck/ssh_config`
-- safe config backups in `~/.config/sshdeck/backups/`
-- full mouse support: click, double-click, right-click, scroll, modal buttons
-- hover highlights for clickable rows, breadcrumbs, status shortcuts, and buttons
-- button-like interactive controls with primary/secondary/danger states
+- backed-up config changes before managed config or include-line modifications
+- broad mouse support for implemented views
 - fuzzy search
-- groups/tags/favorites
-- SSH config import
+- groups/tags/favorites metadata storage
 - connection launcher using system OpenSSH
-- port forwarding builder
-- remote command runner
-- server health dashboard
-- Yazi-style SFTP file manager
-- transfer queue
-- safe remote editing with backups design
+- port forwarding command generator
+- command runner prototype with dangerous-command blocking
+- health panel placeholder
+- prototype Yazi-style remote file browser using `ssh` directory listing
+- transfer queue data model and UI placeholder
 - command palette
 - themes: blackout default, cyber, minimal
 - Unicode animations with ASCII/no-animation fallback
@@ -77,7 +89,7 @@ cargo install sshdeck
 
 SSHDeck is built around a simple idea: your terminal should have a polished SSH command center without requiring a cloud account, Electron, or a rewritten SSH stack.
 
-It reads `~/.ssh/config`, stores SSHDeck-only metadata in `~/.config/sshdeck/config.toml`, and uses your existing `ssh`, `scp`, and `sftp` tools where appropriate.
+It reads `~/.ssh/config`, stores SSHDeck-only metadata in `~/.config/sshdeck/config.toml`, and uses your existing OpenSSH tools where appropriate.
 
 For normal use you do not need to manually edit SSH config. Press `a` or click `[+ Add Host]` to create a host inside SSHDeck. App-created hosts are written to:
 
@@ -85,7 +97,7 @@ For normal use you do not need to manually edit SSH config. Press `a` or click `
 ~/.config/sshdeck/ssh_config
 ```
 
-SSHDeck then offers to add this safe OpenSSH include line to `~/.ssh/config` after creating a timestamped backup:
+SSHDeck then offers to add this OpenSSH include line to `~/.ssh/config` after creating a timestamped backup:
 
 ```sshconfig
 Include ~/.config/sshdeck/ssh_config
@@ -102,16 +114,16 @@ No cloud. No account. No Electron. No AI API. No tracking. No lock-in.
 | Terminal-native | Yes | No | Yes |
 | Local-first | Yes | No | Yes |
 | No account required | Yes | No | Yes |
-| Reads ~/.ssh/config | Yes | Partial | Yes |
+| Reads `~/.ssh/config` | Yes | Partial | Yes |
 | Fuzzy host search | Yes | Yes | No |
-| Mouse support | Yes | Yes | No |
-| Right-click context menus | Yes | Yes | No |
-| Port forwarding UI | Yes | Yes | No |
-| Remote command runner | Yes | Partial | Manual |
-| Server health dashboard | Yes | No | Manual |
-| SFTP file manager | Yes | Yes | Manual |
-| Yazi-like remote file browser | Yes | Partial | No |
-| Safe remote editing backups | Yes | Partial | Manual |
+| Mouse support | Partial/broad | Yes | No |
+| Right-click context menus | Partial | Yes | No |
+| Port forwarding UI | Partial: command generator | Yes | No |
+| Remote command runner | Prototype | Partial | Manual |
+| Server health dashboard | Placeholder | No | Manual |
+| SFTP file manager | Roadmap; ssh listing exists | Yes | Manual |
+| Yazi-style remote file browser | Partial | Partial | No |
+| Safe remote editing backups | Roadmap | Partial | Manual |
 | Open source | Yes | No | Yes |
 
 ## Host management
@@ -121,8 +133,8 @@ Create hosts without leaving the app:
 - press `a` or click `[+ Add Host]`
 - fill alias, hostname/IP, user, port, identity file, group, tags, and notes
 - use Tab / Shift+Tab or mouse clicks to move between fields
-- click `[ Test ]` or focus it and press Enter to run a safe SSH check:
-  `ssh -o BatchMode=yes -o ConnectTimeout=5 <target> exit`
+- click `[ Test ]` or focus it and press Enter to run:
+  `ssh -o BatchMode=yes -o ConnectTimeout=5 -- <target> exit`
 - click `[ Save ]`, press Enter on Save, or press Ctrl+s
 - SSHDeck writes OpenSSH host blocks to `~/.config/sshdeck/ssh_config`
 - tags, groups, favorites, and notes stay in `~/.config/sshdeck/config.toml`
@@ -132,13 +144,14 @@ Editing and deletion:
 - `e` or the Edit button opens the selected host in the form
 - `Shift+d` or the command palette duplicates the selected host with `-copy`
 - `d` opens a delete confirmation
-- imported hosts are hidden/metadata-removed rather than destructively removed from your original `~/.ssh/config`
-- managed hosts are removed from SSHDeck's managed config after backup and confirmation
+- deleting an imported host only removes it from the current SSHDeck view and metadata; SSHDeck does not modify the original `~/.ssh/config`, and imported hosts may reappear on restart
+- managed hosts are removed from SSHDeck's managed config after confirmation, with a backup of the managed config
 
 Validation:
 
 - Alias and Hostname/IP are required
 - Port must be numeric
+- aliases may not start with `-` or contain config-control characters
 - User defaults to the current local username when available
 - Identity file is optional, but SSHDeck warns if the path does not exist
 - Alias spaces and alias conflicts are shown as warnings
@@ -151,16 +164,13 @@ SSHDeck is designed for both terminal power users and people coming from GUI SSH
 
 You can:
 
-- buttons highlight on hover so clickable areas are obvious
 - click hosts, files, breadcrumbs, status shortcuts, and modal/context-menu buttons
-- right-click for context menus
+- right-click host and file rows for context menus
+- double-click host rows to connect
 - scroll host, file, and preview panels
-- click buttons
-- click breadcrumbs
-- use full keyboard shortcuts
 - combine mouse navigation with Vim-style keyboard commands
 
-Mouse support is implemented through crossterm mouse capture and a maintainable hit-test registry (`src/mouse.rs`). Each render pass registers clickable regions such as sidebar groups, host cards, quick action buttons, file entries, breadcrumbs, command palette items, modal buttons, tabs, and transfer items.
+Mouse support is implemented through crossterm mouse capture and a maintainable hit-test registry (`src/mouse.rs`). Some registered file/transfer actions are placeholders until the backing feature is implemented.
 
 ## Keyboard shortcuts
 
@@ -181,73 +191,71 @@ Actions:
 a         add host
 e         edit host
 d         delete host
-s         open files/SFTP
-t         tunnel builder
-r         run command
-h         health check
+s         open SSHDeck Files prototype
+t         tunnel command generator
+r         command runner prototype
+h         health panel placeholder
 l         logs
+,         settings
 Ctrl+p    command palette
 ?         help
 ```
 
-## Yazi-style SFTP File Manager
+## SSHDeck Files prototype
 
-SSHDeck includes a fast keyboard-first remote file manager inspired by Yazi and Ranger.
+SSHDeck includes a Yazi-inspired remote file browser prototype.
 
-Features:
+Implemented today:
 
+- remote directory listing over `ssh` + `ls -la`
 - three-column remote navigation
-- full mouse interaction with hover feedback
-- optional local/remote dual-pane mode
-- preview panel
-- Vim-style keybindings
-- upload/download queue
-- bookmarks
-- hidden files toggle
-- safe remote editing with backups architecture
-- command mode
-- Unicode animations
-- local-first configuration
+- metadata preview panel
+- hidden-files toggle
+- refresh
+- mouse selection and right-click context menu
+- breadcrumbs
+- dual-pane layout placeholder
+- transfer queue modal placeholder
+- sensitive-path helper checks in preview helpers
+
+Not implemented yet:
+
+- real SFTP/scp upload/download execution from the UI
+- remote file content preview in the main UI
+- remote editing with backup/upload
+- delete/rename/new-file operations
+- bookmarks UI
+- full visual selection
+- real local-pane filesystem model
 
 ![SSHDeck Files screenshot](docs/images/files.png)
 
-Files shortcuts:
+Currently implemented Files shortcuts:
 
 ```text
 j/k         move
-h/l         parent/open
-g/G         top/bottom
-/           search
+h/l         parent/open directory
+Enter       open directory or select file
+~           remote home
+R           refresh
 .           hidden files
-Space       select
-v           visual mode
-V           select all
-Ctrl+r      clear selection
-y           copy/yank
-x           cut
-p           paste
-u           upload
-d           download
-D           delete
-r           rename
-n           new file/folder
-e           edit
-c           copy path
-Tab         dual-pane
-T           transfers
-b           bookmarks
-:           command mode
+Tab         show/switch dual-pane UI
+T           transfer queue modal
+:           command input placeholder
+Esc/q       back
 ```
 
-## Tunnel builder
+## Tunnel command generator
 
-SSHDeck can generate safe OpenSSH tunnel commands:
+SSHDeck can generate OpenSSH tunnel commands:
 
 ```bash
 ssh -L 8080:localhost:80 web-prod-1
 ssh -R 9000:localhost:9000 web-prod-1
 ssh -D 1080 web-prod-1
 ```
+
+Starting/stopping live tunnel processes from the TUI is not implemented yet.
 
 ![SSHDeck tunnel screenshot](docs/images/tunnel.png)
 
@@ -257,6 +265,12 @@ SSHDeck creates and reads:
 
 ```text
 ~/.config/sshdeck/config.toml
+```
+
+Managed OpenSSH host blocks live at:
+
+```text
+~/.config/sshdeck/ssh_config
 ```
 
 Example:
@@ -283,10 +297,6 @@ preview_max_bytes = 1048576
 [bookmarks.global]
 downloads = "~/Downloads"
 
-[bookmarks.web-prod-1]
-webroot = "/var/www/app"
-logs = "/var/log"
-
 [settings]
 default_command = "ssh"
 ```
@@ -299,21 +309,27 @@ Include ~/.config/sshdeck/ssh_config
 
 ## Safety notes
 
-SSHDeck is designed to be conservative:
+Implemented safety today:
 
-- never print private key contents
-- never expose `.env` contents by default
-- never log secrets or remote file contents
-- never auto-delete SSH config
-- backup config before modification
-- confirm before deleting hosts or remote files
-- confirm before overwriting remote files
-- backup before editing remote files
-- warn before destructive commands
-- quote remote paths safely
-- never allow deleting `/`
+- no SSH protocol reimplementation; system `ssh` is used
+- OpenSSH destination arguments are separated from options with `--` where SSHDeck builds commands
+- managed host validation blocks aliases that start with `-` and fields containing newlines/control characters
+- managed config and include-line writes create backups
+- config writes use temp-file then rename for lower corruption risk
+- host deletion requires confirmation
+- dangerous command patterns are detected and blocked in command input
+- sensitive remote preview helper blocks paths such as `.env`, private keys, and `/etc/shadow`
+- local logs redact common sensitive path markers and identity-file arguments
+- remote paths are shell-quoted in listing/preview helper commands
 
-Dangerous command patterns are blocked or require explicit confirmation, including `rm -rf`, `mkfs`, `dd`, `shutdown`, `reboot`, `passwd`, `userdel`, firewall flushes, and recursive permission changes.
+Important limitations:
+
+- remote file edit/delete/overwrite flows are not implemented yet, so their confirmations and backups are roadmap items
+- the command runner UI does not execute remote commands yet
+- the health panel does not execute remote health checks yet
+- current remote file listing uses `ls -la`, which is pragmatic but not as robust as a native SFTP backend
+
+Dangerous command patterns currently detected include `rm -rf`, `mkfs`, `dd`, `shutdown`, `reboot`, `passwd`, `userdel`, firewall flushes, and recursive permission changes.
 
 ## CLI
 
@@ -332,51 +348,35 @@ sshdeck import
 sshdeck doctor
 ```
 
+`sshdeck import` parses `~/.ssh/config`, reports how many host blocks SSHDeck can see, and initializes/saves SSHDeck config. It does not persistently copy imported hosts into the app config yet.
+
 `sshdeck doctor` checks terminal mouse reporting, mouse config, terminal size, color support, Unicode/Nerd Font settings, OpenSSH binaries, SSH config parsing, managed config path, SSH directory state, identity files referenced by hosts, app config validity, and the default local files directory.
-
-## Screenshot and GIF plan
-
-1. Dashboard:
-   - click host
-   - right-click menu
-   - double-click connect
-2. Files:
-   - open files
-   - click folder
-   - scroll preview
-   - right-click file
-3. Tunnels:
-   - click tunnel builder
-   - choose local/remote/dynamic tunnel type
-   - create local forward
-
-The target demo should communicate, without narration, that SSHDeck is a beautiful local-first SSH command center with keyboard and mouse workflows for SSH, files, tunnels, commands, and health.
 
 ## Roadmap
 
 v0.1:
-- SSH config import
+- SSH config reading
 - host list
 - fuzzy search
 - connect
-- groups/tags
+- managed hosts
 - command palette
+- settings
 
 v0.2:
-- tunnel builder
-- command runner
-- health panel
-- logs
+- interactive tunnel builder inputs
+- real command runner execution
+- remote health execution/parsing
+- logs polish
 
 v0.3:
-- SSHDeck Files
-- Yazi-style remote file browser
-- upload/download
-- remote preview
+- SSHDeck Files real transfer execution
+- native or robust SFTP backend
+- remote preview with confirmation gates
 - safe remote editing
-- transfer queue
-- bookmarks
-- dual-pane mode
+- transfer queue execution/cancel/retry
+- bookmarks UI
+- full dual-pane local/remote model
 
 v0.4:
 - tmux integration
@@ -387,7 +387,6 @@ v0.5:
 - Tailscale device discovery
 - Cloudflare Tunnel awareness
 - backup/sync through Git
-- native SFTP backend if reliable
 
 v1.0:
 - stable plugin system
@@ -405,11 +404,7 @@ cargo run -- doctor
 cargo install --path .
 ```
 
-The MVP contains tests for SSH config parsing, app config loading, command generation, tunnel command generation, dangerous command detection, file path safety checks, remote command quoting helpers, file entry parsing, bookmark config loading, and transfer queue state transitions.
-
-## Contributing
-
-Contributions are welcome. Please keep SSHDeck local-first, safe by default, terminal-native, and respectful of existing OpenSSH configuration.
+The MVP contains tests for SSH config parsing, app config loading, command generation, tunnel command generation, dangerous command detection, file path safety checks, sensitive preview blocking, log redaction, remote command quoting helpers, file entry parsing, bookmark config loading, transfer queue state transitions, and mouse hit regions.
 
 Before opening a PR:
 
@@ -420,6 +415,10 @@ cargo fmt
 ```
 
 If `rustfmt` or `clippy` are not installed, install the Rust components for your toolchain and rerun the checks.
+
+## Contributing
+
+Contributions are welcome. Please keep SSHDeck local-first, safe by default, terminal-native, and respectful of existing OpenSSH configuration.
 
 ## License
 

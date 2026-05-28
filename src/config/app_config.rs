@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fs, path::PathBuf};
+use std::{collections::BTreeMap, fs, io::Write, path::{Path, PathBuf}};
 use serde::{Deserialize, Serialize};
 
 fn default_true() -> bool { true }
@@ -36,10 +36,21 @@ impl AppConfig {
     }
     pub fn save(&self) -> anyhow::Result<()> {
         if let Some(parent)=self.path.parent() { fs::create_dir_all(parent)?; }
-        if self.path.exists() { let bak = self.path.with_extension(format!("toml.bak.{}", chrono::Local::now().format("%Y%m%d-%H%M%S"))); fs::copy(&self.path, bak).ok(); }
+        if self.path.exists() { let bak = self.path.with_extension(format!("toml.bak.{}", chrono::Local::now().format("%Y%m%d-%H%M%S%.f"))); fs::copy(&self.path, bak).ok(); }
         let mut clone = self.clone(); clone.path = PathBuf::new();
-        fs::write(&self.path, toml::to_string_pretty(&clone)?)?; Ok(())
+        atomic_write(&self.path, toml::to_string_pretty(&clone)?.as_bytes())?; Ok(())
     }
+}
+fn atomic_write(path: &Path, bytes: &[u8]) -> anyhow::Result<()> {
+    if let Some(parent) = path.parent() { fs::create_dir_all(parent)?; }
+    let tmp = path.with_extension(format!("tmp.{}", std::process::id()));
+    {
+        let mut f = fs::File::create(&tmp)?;
+        f.write_all(bytes)?;
+        f.sync_all()?;
+    }
+    fs::rename(tmp, path)?;
+    Ok(())
 }
 #[cfg(test)]
 mod tests { use super::*; #[test] fn loads_bookmarks_from_toml(){ let t=r#"[ui]

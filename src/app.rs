@@ -488,7 +488,7 @@ impl App {
                 // SSHDeck does not parse yet (ControlMaster, Match, Include,
                 // RequestTTY, SetEnv, etc.). This is faster and more faithful
                 // than reconstructing a partial command from parsed fields.
-                vec![alias.clone()]
+                vec!["--".into(), alias.clone()]
             };
             if !args.iter().any(|a| a == "-t" || a == "-tt" || a == "-T") {
                 args.insert(0, "-t".into());

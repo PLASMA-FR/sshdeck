@@ -41,6 +41,7 @@ fn ssh_args_for_with_forwards(host: &SshHost, include_forwards: bool) -> Vec<Str
         }
     }
 
+    args.push("--".into());
     args.push(ssh_destination_for(host));
     args
 }
@@ -110,6 +111,7 @@ pub fn is_dangerous_command(cmd: &str) -> bool {
         "iptables flush",
         "nft flush",
         "chmod -r 777",
+        "chmod -r777",
         "chown -r",
     ]
     .iter()
@@ -117,7 +119,7 @@ pub fn is_dangerous_command(cmd: &str) -> bool {
 }
 
 pub fn run_ssh_command(alias: &str, remote_command: &str) -> anyhow::Result<String> {
-    let out = Command::new("ssh").arg(alias).arg(remote_command).output()?;
+    let out = Command::new("ssh").arg("--").arg(alias).arg(remote_command).output()?;
     Ok(String::from_utf8_lossy(&out.stdout).to_string() + &String::from_utf8_lossy(&out.stderr))
 }
 
@@ -140,7 +142,7 @@ mod tests {
             alias: "web prod".into(),
             ..Default::default()
         };
-        assert_eq!(ssh_command_for(&h), "ssh 'web prod'");
+        assert_eq!(ssh_command_for(&h), "ssh -- 'web prod'");
     }
 
     #[test]
@@ -170,10 +172,11 @@ mod tests {
                 "-A",
                 "-o",
                 "ServerAliveInterval=30",
+                "--",
                 "deploy@10.0.0.12",
             ]
         );
-        assert_eq!(ssh_command_for(&h), "ssh -p 2222 -i ~/.ssh/id_ed25519 -J bastion -A -o ServerAliveInterval=30 deploy@10.0.0.12");
+        assert_eq!(ssh_command_for(&h), "ssh -p 2222 -i ~/.ssh/id_ed25519 -J bastion -A -o ServerAliveInterval=30 -- deploy@10.0.0.12");
     }
 
     #[test]
@@ -191,6 +194,7 @@ mod tests {
                 "BatchMode=yes",
                 "-o",
                 "ConnectTimeout=5",
+                "--",
                 "raspberrypi.local",
                 "exit"
             ]
@@ -211,8 +215,25 @@ mod tests {
 
         assert_eq!(
             ssh_noninteractive_args_for(&h),
-            vec!["-p", "2222", "ahmad@10.0.0.44"]
+            vec!["-p", "2222", "--", "ahmad@10.0.0.44"]
         );
+    }
+
+
+    #[test]
+    fn destination_is_separated_from_options() {
+        let h = SshHost {
+            alias: "-oProxyCommand=evil".into(),
+            ..Default::default()
+        };
+        let args = ssh_args_for(&h);
+        assert_eq!(args, vec!["--", "-oProxyCommand=evil"]);
+    }
+
+    #[test]
+    fn dangerous_recursive_permission_forms_are_detected() {
+        assert!(is_dangerous_command("chmod -R777 /tmp"));
+        assert!(is_dangerous_command("chmod -R 777 /tmp"));
     }
 
     #[test]
