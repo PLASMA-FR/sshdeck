@@ -12,6 +12,12 @@ SSHDeck is a terminal app. It reads your existing SSH config, stores SSHDeck met
 ## Install from source
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/PLASMA-FR/sshdeck/main/scripts/install.sh | bash
+```
+
+Or from a cloned checkout:
+
+```bash
 git clone https://github.com/PLASMA-FR/sshdeck
 cd sshdeck
 bash scripts/install.sh

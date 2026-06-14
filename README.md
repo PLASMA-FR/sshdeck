@@ -57,6 +57,12 @@ Not implemented yet:
 SSHDeck is not published on crates.io yet. Install from source:
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/PLASMA-FR/sshdeck/main/scripts/install.sh | bash
+```
+
+Or from a cloned checkout:
+
+```bash
 git clone https://github.com/PLASMA-FR/sshdeck
 cd sshdeck
 bash scripts/install.sh
