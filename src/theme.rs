@@ -29,12 +29,12 @@ impl Theme {
         }
     }
     pub fn blackout() -> Self {
-        Self { name: ThemeName::Blackout, bg: Color::Rgb(6, 7, 9), fg: Color::Rgb(232, 236, 240), muted: Color::Rgb(126, 137, 148), surface: Color::Rgb(13, 15, 19), overlay: Color::Rgb(21, 24, 30), border_color: Color::Rgb(55, 62, 70), accent: Color::Rgb(112, 178, 204), accent2: Color::Rgb(151, 165, 180), success: Color::Rgb(112, 185, 137), warning: Color::Rgb(224, 174, 91), error: Color::Rgb(219, 93, 93) }
+        Self { name: ThemeName::Blackout, bg: Color::Rgb(10, 9, 8), fg: Color::Rgb(238, 232, 219), muted: Color::Rgb(148, 137, 122), surface: Color::Rgb(18, 16, 14), overlay: Color::Rgb(28, 25, 21), border_color: Color::Rgb(67, 58, 48), accent: Color::Rgb(218, 166, 82), accent2: Color::Rgb(111, 161, 151), success: Color::Rgb(123, 174, 130), warning: Color::Rgb(224, 168, 80), error: Color::Rgb(211, 101, 84) }
     }
-    fn selection_bg(&self) -> Color { match self.name { ThemeName::Blackout => Color::Rgb(20, 43, 54), ThemeName::Cyber => Color::Rgb(10, 43, 62), ThemeName::Minimal => Color::DarkGray } }
-    fn hover_bg(&self) -> Color { match self.name { ThemeName::Blackout => Color::Rgb(26, 54, 67), ThemeName::Cyber => Color::Rgb(18, 55, 77), ThemeName::Minimal => Color::Gray } }
-    fn primary_hover_bg(&self) -> Color { match self.name { ThemeName::Blackout => Color::Rgb(145, 207, 228), ThemeName::Cyber => Color::Rgb(128, 210, 255), ThemeName::Minimal => Color::White } }
-    fn secondary_hover_bg(&self) -> Color { match self.name { ThemeName::Blackout => Color::Rgb(28, 34, 42), ThemeName::Cyber => Color::Rgb(32, 44, 55), ThemeName::Minimal => Color::DarkGray } }
+    fn selection_bg(&self) -> Color { match self.name { ThemeName::Blackout => Color::Rgb(52, 43, 31), ThemeName::Cyber => Color::Rgb(10, 43, 62), ThemeName::Minimal => Color::DarkGray } }
+    fn hover_bg(&self) -> Color { match self.name { ThemeName::Blackout => Color::Rgb(65, 52, 36), ThemeName::Cyber => Color::Rgb(18, 55, 77), ThemeName::Minimal => Color::Gray } }
+    fn primary_hover_bg(&self) -> Color { match self.name { ThemeName::Blackout => Color::Rgb(235, 190, 112), ThemeName::Cyber => Color::Rgb(128, 210, 255), ThemeName::Minimal => Color::White } }
+    fn secondary_hover_bg(&self) -> Color { match self.name { ThemeName::Blackout => Color::Rgb(41, 36, 31), ThemeName::Cyber => Color::Rgb(32, 44, 55), ThemeName::Minimal => Color::DarkGray } }
     pub fn title(&self) -> Style { Style::default().fg(self.fg).add_modifier(Modifier::BOLD) }
     pub fn accent(&self) -> Style { Style::default().fg(self.accent).add_modifier(Modifier::BOLD) }
     pub fn selected(&self) -> Style { Style::default().fg(self.fg).bg(self.selection_bg()).add_modifier(Modifier::BOLD) }

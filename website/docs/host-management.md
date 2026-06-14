@@ -14,7 +14,7 @@ SSHDeck reads imported hosts from `~/.ssh/config` and writes app-created hosts t
 ~/.config/sshdeck/config.toml
 ```
 
-Metadata includes groups, tags, favorites, notes, bookmarks, UI preferences, and file-manager preferences.
+Metadata includes groups, tags, favorites, notes, bookmarks, UI preferences, file-manager preferences, and reserved state for hidden imported hosts, recent hosts, tunnel presets, and last paths.
 
 ## Add a host
 
@@ -43,4 +43,4 @@ The original SSH config is backed up before this line is appended.
 
 ## Delete behavior
 
-Managed hosts are removed from SSHDeck's managed config after confirmation. Imported hosts are hidden only from the current SSHDeck view and may reappear after restart until persistent imported-host hiding is implemented.
+Managed hosts are removed from SSHDeck's managed config after confirmation. Imported hosts are hidden only from the current SSHDeck view today. The config schema has a `hidden_imported_hosts` field reserved for persistent hiding, but the TUI restore path is not wired yet.

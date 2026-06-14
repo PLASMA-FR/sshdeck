@@ -14,14 +14,15 @@ Fix missing OpenSSH binaries or invalid config before relying on the TUI.
 sshdeck
 ```
 
-## 3. Add or import hosts
+## 3. Add or read hosts
 
 Inside the TUI:
 
 - `a` opens Add Host
-- `i` imports from `~/.ssh/config` where available
 - `/` searches hosts
 - `Enter` connects to the selected host
+
+SSHDeck reads `~/.ssh/config` at startup. From the shell, `sshdeck import` parses that file and reports how many hosts SSHDeck can see; it does not rewrite your OpenSSH config.
 
 ## 4. Open common workflows
 

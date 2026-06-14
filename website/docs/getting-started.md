@@ -14,7 +14,7 @@ SSHDeck is a terminal app. It reads your existing SSH config, stores SSHDeck met
 ```bash
 git clone https://github.com/PLASMA-FR/sshdeck
 cd sshdeck
-cargo install --path .
+bash scripts/install.sh
 ```
 
 ## First run

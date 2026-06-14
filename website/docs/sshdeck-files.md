@@ -30,6 +30,7 @@ Implemented today:
 - Transfer queue modal and state model
 - Sensitive path helper checks
 - Dual-pane visual placeholder
+- Config fields for bookmarks and last local/remote paths
 
 Not implemented yet:
 
@@ -38,7 +39,7 @@ Not implemented yet:
 - Remote delete, rename, touch, mkdir, chmod, or chown execution
 - Native SFTP backend
 - Robust machine-readable remote stat format
-- Full bookmarks UI
+- Full bookmarks UI and automatic last-path restore
 
 ## Why it is still valuable
 

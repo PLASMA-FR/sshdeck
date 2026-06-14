@@ -45,7 +45,7 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
 
 fn rows(app: &App) -> Vec<SettingRow<'static>> {
     vec![
-        SettingRow { id: "theme", label: "Theme", value: app.config.ui.theme.clone(), hint: "cycle blackout, minimal, cyber", mutable: true },
+        SettingRow { id: "theme", label: "Theme", value: app.config.ui.theme.clone(), hint: "cycle warm blackout, minimal, cyber", mutable: true },
         SettingRow { id: "animations", label: "Animations", value: on_off(app.config.ui.animations), hint: "spinners, shimmer, transfer dots", mutable: true },
         SettingRow { id: "unicode", label: "Unicode", value: on_off(app.config.ui.unicode), hint: "rounded borders and symbols", mutable: true },
         SettingRow { id: "nerd_font", label: "Nerd Font", value: on_off(app.config.ui.nerd_font), hint: "server/file glyphs when your terminal supports them", mutable: true },
@@ -90,7 +90,7 @@ fn draw_settings_list(f: &mut Frame, app: &mut App, area: Rect) {
 fn draw_settings_notes(f: &mut Frame, app: &App, area: Rect) {
     let selected = rows(app).get(app.settings_selected).map(|r| r.id).unwrap_or("theme");
     let details = match selected {
-        "theme" => "Blackout is the default: near-black, quiet borders, one soft accent. Cyber is still there, but not the house style.",
+        "theme" => "Blackout is the default: charcoal surfaces, warm text, quiet borders, and one amber accent. Cyber is still there, but not the house style.",
         "animations" => "Animations are deliberately small: startup identity, spinners, and transfer dots. Turning this off keeps the UI still.",
         "unicode" => "Turn this off for stricter terminals. SSHDeck falls back to square ASCII labels and simpler borders.",
         "nerd_font" => "Use this only if your terminal font supports Nerd Font glyphs. Otherwise disable it for clean plain labels.",

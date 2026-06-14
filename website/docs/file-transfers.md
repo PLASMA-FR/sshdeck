@@ -2,13 +2,18 @@
 
 SSHDeck has a transfer queue data model and UI placeholder. Actual upload/download execution from the Files UI is not complete yet.
 
-## Intended behavior
+## Current UI
 
-- `u` uploads local selected files to the active remote directory
-- `d` downloads remote selected files to the active local directory
 - `T` opens the transfer queue
-- Failed transfers can be retried
-- Active transfers show a subtle Unicode progress animation
+- Transfer queue state and progress rendering exist
+- Upload/download execution is not wired to `scp`, `sftp`, or a native SFTP backend yet
+
+## Reserved behavior
+
+- `u` should upload local selected files to the active remote directory
+- `d` should download remote selected files to the active local directory
+- Failed transfers should be retryable
+- Active transfers should show a subtle Unicode progress animation
 
 ## Safety requirements before implementation
 

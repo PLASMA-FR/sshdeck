@@ -7,9 +7,9 @@ SSHDeck welcomes contributions that keep the project local-first, safe, fast, an
 ```bash
 git clone https://github.com/PLASMA-FR/sshdeck
 cd sshdeck
-cargo check
-cargo test
-cargo run
+cargo check --locked
+cargo test --locked
+cargo run --locked
 ```
 
 ## Website setup
@@ -24,8 +24,8 @@ npm run docs:dev
 Run:
 
 ```bash
-cargo check
-cargo test
+cargo check --locked
+cargo test --locked
 npm run docs:build
 ```
 

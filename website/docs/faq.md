@@ -18,7 +18,7 @@ The Yazi-style Files interface and remote listing prototype exist. Full upload/d
 
 ## Is `cargo install sshdeck` available?
 
-Not yet. Use `cargo install --path .` from a cloned repository until the project is published.
+Not yet. Use `bash scripts/install.sh` from a cloned repository until the project is published. Direct `cargo install --locked --path .` also works.
 
 ## Can SSHDeck edit my SSH config?
 

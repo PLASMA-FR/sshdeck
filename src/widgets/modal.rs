@@ -4,15 +4,35 @@ use crate::{app::{App, HostFormState}, config::managed_hosts::HostValidationLeve
 fn centered(area:Rect, w:u16, h:u16)->Rect{ crate::design::layout::centered(area,w,h) }
 
 pub fn command_palette(f:&mut Frame, app:&mut App, area:Rect){
-    let r=centered(area,56,15); f.render_widget(Clear,r);
-    let actions=["Add Host","Open SSHDeck Files","Create Tunnel","Run Remote Command","Fetch Health","Copy SSH Command","Duplicate Host","Toggle Theme","Open Settings","Quit"];
-    let mut lines=vec![Line::from(vec![Span::styled("> ",app.theme.muted()),Span::styled(app.palette_input.clone(),app.theme.title())]), Line::raw("")];
-    for (i,a) in actions.iter().enumerate(){ let y=r.y+3+i as u16; if y<r.y+r.height-1 { let target=ClickTarget::CommandPaletteItem((*a).into()); app.mouse.register(Rect{x:r.x+1,y,width:r.width-2,height:1}, target.clone()); lines.push(Line::from(button::label(app,a,&target,ButtonKind::Ghost))); } }
-    f.render_widget(Paragraph::new(lines).style(app.theme.overlay()).block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).border_style(app.theme.active_border()).title(" Command Palette ")),r);
+    let r=centered(area,58,17); f.render_widget(Clear,r);
+    let actions=["Add host","Open files","Build tunnel","Run command","Check health","Duplicate host","Toggle theme","Open settings","Show Include command","Quit"];
+    let mut lines=vec![
+        Line::from(vec![Span::styled("> ",app.theme.muted()),Span::styled(app.palette_input.clone(),app.theme.title())]),
+        Line::from(Span::styled("Type a word like files, tunnel, health, or settings.", app.theme.muted())),
+        Line::raw(""),
+    ];
+    for (i,a) in actions.iter().enumerate(){ let y=r.y+4+i as u16; if y<r.y+r.height-2 { let target=ClickTarget::CommandPaletteItem((*a).into()); app.mouse.register(Rect{x:r.x+1,y,width:r.width-2,height:1}, target.clone()); let selected=app.palette_selected==i; let marker=if selected {"›"} else {" "}; lines.push(Line::from(vec![Span::styled(marker, if selected{app.theme.accent()}else{app.theme.muted()}), button::label(app,a,&target,ButtonKind::Ghost)])); } }
+    lines.push(Line::raw(""));
+    lines.push(Line::from(Span::styled("Enter runs recognized text · Esc closes", app.theme.muted())));
+    f.render_widget(Paragraph::new(lines).style(app.theme.overlay()).block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).border_style(app.theme.active_border()).title(" Command palette ")),r);
 }
 
 pub fn search(f:&mut Frame, app:&mut App, area:Rect){ let r=centered(area,50,5); f.render_widget(Clear,r); f.render_widget(Paragraph::new(format!("/{}\n{} matches",app.search, app.filtered.len())).style(app.theme.overlay()).block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).border_style(app.theme.active_border()).title(" Search ")),r); }
 pub fn command_mode(f:&mut Frame, app:&mut App, area:Rect){ let r=Rect{x:area.x,y:area.y+area.height.saturating_sub(4),width:area.width,height:3}; f.render_widget(Clear,r); f.render_widget(Paragraph::new(format!(":{}",app.command_input)).style(app.theme.overlay()).block(Block::bordered().border_style(app.theme.active_border()).title(" Command ")),r); }
+
+pub fn confirm(f:&mut Frame, app:&mut App, area:Rect){
+    let Some(confirm)=app.confirm.clone() else { return; };
+    let r=centered(area,64,11); f.render_widget(Clear,r);
+    let text=vec![
+        Line::from(Span::styled(confirm.prompt, app.theme.title())),
+        Line::raw(""),
+        Line::from(vec![Span::styled("expected  ", app.theme.muted()), Span::styled(confirm.expected, app.theme.warning())]),
+        Line::from(vec![Span::styled("typed     ", app.theme.muted()), Span::styled(confirm.input, app.theme.accent())]),
+        Line::raw(""),
+        Line::from(Span::styled("Enter confirms · Esc cancels", app.theme.muted())),
+    ];
+    f.render_widget(Paragraph::new(text).wrap(Wrap{trim:false}).style(app.theme.overlay()).block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).border_style(app.theme.active_border()).title(format!(" {} ", confirm.title))),r);
+}
 
 pub fn host_form(f:&mut Frame, app:&mut App, area:Rect){
     let Some(form)=app.host_form.clone() else { return; };
@@ -39,12 +59,14 @@ pub fn host_form(f:&mut Frame, app:&mut App, area:Rect){
 
 pub fn context_menu(f:&mut Frame, app:&mut App, area:Rect){
     let Some(menu)=app.context_menu.clone() else { return; };
-    let w=menu.items.iter().map(|(s,_)|s.len() as u16).max().unwrap_or(16).saturating_add(4).min(54);
-    let h=(menu.items.len() as u16 + 2).min(area.height.saturating_sub(2));
+    let footer="Esc closes · keyboard shortcuts still work";
+    let w=menu.items.iter().map(|(s,_)|s.len() as u16).chain(std::iter::once(footer.len() as u16)).max().unwrap_or(16).saturating_add(4).min(54);
+    let h=(menu.items.len() as u16 + 3).min(area.height.saturating_sub(2));
     let r=centered(area,w,h); f.render_widget(Clear,r);
     let mut rows=Vec::new();
-    for (i,(label,target)) in menu.items.iter().enumerate(){ let y=r.y+1+i as u16; app.mouse.register(Rect{x:r.x+1,y,width:r.width-2,height:1}, target.clone());        let style=if app.is_hovered(target){app.theme.hovered()}else{app.theme.normal()};
-        rows.push(ListItem::new(button::label(app,label,target,ButtonKind::Ghost)).style(style));}
+    for (i,(label,target)) in menu.items.iter().enumerate(){ let y=r.y+1+i as u16; app.mouse.register(Rect{x:r.x+1,y,width:r.width-2,height:1}, target.clone());        let selected=app.context_menu_selected==i; let style=if app.is_hovered(target){app.theme.hovered()}else if selected{app.theme.selected()}else{app.theme.normal()}; let marker=if selected{"›"}else{" "};
+        rows.push(ListItem::new(Line::from(vec![Span::styled(marker, if selected{app.theme.accent()}else{app.theme.muted()}), button::label(app,label,target,ButtonKind::Ghost)])).style(style));}
+    rows.push(ListItem::new(footer).style(app.theme.muted()));
     f.render_widget(List::new(rows).style(app.theme.overlay()).block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).border_style(app.theme.active_border()).title(format!(" {} ",menu.title))).highlight_style(app.theme.selected()),r);
 }
 

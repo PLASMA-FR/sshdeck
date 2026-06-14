@@ -3,6 +3,8 @@
 Date: 2026-05-29
 Scope: local Rust source, SSH command construction, managed config writes, remote file helper paths, logs, README claims, and available automated tests.
 
+Last config/docs update: 2026-06-14.
+
 ## Summary
 
 SSHDeck is an early local-first TUI MVP. The audit focused on preventing local command/option injection, OpenSSH config injection, accidental secret logging, unsafe remote preview behavior, and false safety claims.
@@ -84,6 +86,7 @@ Reviewed:
 - `~/.config/sshdeck/config.toml`
 - `~/.config/sshdeck/ssh_config`
 - optional `Include ~/.config/sshdeck/ssh_config` insertion into `~/.ssh/config`
+- reserved config state for hidden imported hosts, recent hosts, tunnel presets, last paths, and bookmarks
 
 Findings and fixes:
 
@@ -105,6 +108,8 @@ Known risks:
 
 - Existing file permissions are not fully normalized to `0600`; this should be added for SSHDeck config/log files on Unix before a packaged release.
 - The parser is intentionally simple and does not fully implement every OpenSSH config grammar edge case.
+- The new reserved config fields can store host aliases and filesystem paths. They must not be used for private keys, passwords, command output, or file contents.
+- Persistent imported-host hiding is schema-ready but not wired through the TUI restore path yet; until then, imported-host deletion remains current-session behavior.
 
 ## File operation safety review
 

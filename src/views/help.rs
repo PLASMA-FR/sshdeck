@@ -9,8 +9,8 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
 The shape of the app
   Dashboard     Pick a server, see enough context, act safely.
   Files         Move like Yazi: parent, current folder, preview.
-  Tunnels       Build the SSH command first, then run it.
-  Commands      Start with safe checks. SSHDeck warns before risky work.
+  Tunnels       Build the SSH command before starting it.
+  Commands      Stage a command and block destructive patterns.
 
 Keyboard
   ↑/k       move up
@@ -23,20 +23,25 @@ Keyboard
   r         run a remote command
   h         check health
   Ctrl+p    command palette
+  ,         settings
   q         quit or go back
 
 Mouse
   Click rows, buttons, sidebar items, breadcrumbs, and footer chips.
   Double-click a host to connect.
-  Right-click hosts and files for a small action menu.
+  Right-click hosts for a small action menu.
   Scroll over the pane you want to move.
 
 SSHDeck Files
-  j/k move · h/l parent/open · Space select · Tab dual pane
-  . hidden files · T transfers · : command mode · ? help
+  j/k move · h/l parent/open · R refresh · ~ home
+  Tab dual pane · . hidden files · T transfer queue · : guarded command
 
-If something feels scary, SSHDeck should slow down and explain why.
-If something feels missing, open an issue. That feedback shapes the tool.";
+What is real today
+  Health queues uptime, disk, memory, and kernel checks.
+  Command mode parses locally and blocks risky patterns before remote execution.
+  File edit, rename, upload, download, and delete entries are guarded stubs for now.
+
+If something feels scary, SSHDeck should slow down and explain why.";
 
     f.render_widget(
         Paragraph::new(text).wrap(Wrap { trim: false }).block(
@@ -48,5 +53,5 @@ If something feels missing, open an issue. That feedback shapes the tool.";
         chunks[0],
     );
 
-    status_bar::draw(f, app, chunks[1], "Esc back · / search · Ctrl+p commands");
+    status_bar::draw(f, app, chunks[1], "Esc back · / search · Ctrl+p commands · ? help");
 }

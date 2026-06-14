@@ -24,7 +24,7 @@ ssh -D 1080 web-prod-1
 
 ## Current status
 
-Command generation and UI scaffolding are present. Live tunnel process start, stop, monitoring, and persistence are roadmap items.
+Command generation and UI scaffolding are present. The app config has reserved `tunnel_presets` fields for named presets. Preset editing/loading, live tunnel process start, stop, monitoring, and persistence are roadmap items.
 
 ## Safety notes
 

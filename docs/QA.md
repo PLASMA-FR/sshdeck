@@ -11,6 +11,15 @@ Status: reviewed during the end-to-end audit pass. Items marked complete were ve
 - [x] Project has a clean Rust module layout under `src/`.
 - [x] README was reviewed for truthfulness against implementation.
 
+Release gate:
+
+- [ ] `cargo fmt --check` passes, or the release notes explicitly document why rustfmt was unavailable.
+- [ ] `cargo check --locked` passes.
+- [ ] `cargo test --locked` passes.
+- [ ] `cargo clippy --locked -- -D warnings` passes, or the release notes explicitly document why clippy was unavailable.
+- [ ] `cargo run --locked -- doctor` passes on the release machine.
+- [ ] `npm run docs:build` passes for the website.
+
 ## Dashboard checks
 
 - [x] Empty-host state exists and offers add/import/help actions.
@@ -63,6 +72,7 @@ Known partial items:
 - [x] Host form: Tab, Shift+Tab, Ctrl+s, Enter, Esc, typing, and Backspace are handled.
 - [x] Files: `j/k`, `h/l`, Enter, Backspace, `~`, `R`, `.`, Tab, Shift+Tab, `T`, `:`, and `q`/Esc are handled.
 - [x] Settings: arrows, `j/k`, Enter/Space are handled.
+- [x] Public keyboard docs distinguish implemented Files keys from reserved shortcuts.
 
 Known partial items:
 
@@ -78,6 +88,7 @@ Known partial items:
 - [x] Sensitive preview helper blocks `.env`, private keys, and dangerous system files before invoking ssh.
 - [x] Large preview helper path has a max-byte guard.
 - [x] README marks real SFTP/scp transfer execution, editing, delete/rename/new-file, bookmarks, and full dual-pane local model as not implemented.
+- [x] Docs mark upload/download shortcuts and bookmarks UI as reserved until execution workflows are wired.
 
 Manual follow-up:
 
@@ -90,6 +101,7 @@ Manual follow-up:
 - [x] Local forward command generation is tested.
 - [x] Dynamic forward command generation is tested with quoted alias.
 - [x] README marks live start/stop as not implemented.
+- [x] Tunnel preset config fields are documented as reserved until TUI preset editing/loading is wired.
 
 Manual follow-up:
 
@@ -138,10 +150,21 @@ Manual follow-up:
 - [x] Sensitive preview helper blocks before invoking ssh.
 - [x] README no longer claims unimplemented remote delete/edit/overwrite guarantees.
 
+## Config compatibility checks
+
+- [x] Legacy `config.toml` without hidden-host, recent-host, tunnel-preset, or last-path fields deserializes with defaults.
+- [x] Reserved state fields deserialize from TOML.
+- [ ] Confirm a saved config round trip keeps top-level state fields, bookmarks, host metadata, and settings.
+- [ ] Before wiring hidden imported hosts, verify deleting an imported host persists and restores across restart without editing `~/.ssh/config`.
+- [ ] Before wiring recent hosts, cap the list and define duplicate/missing-host cleanup behavior.
+
 ## Release checks
 
 - [x] README is honest about MVP status and partial features.
 - [x] `docs/QA.md` exists.
 - [x] `docs/SECURITY_REVIEW.md` exists.
+- [ ] Website docs and README list the same CLI commands/options.
+- [ ] Keyboard docs match `src/app.rs` handlers and do not advertise reserved shortcuts as implemented.
+- [ ] Feature pages separate implemented behavior from roadmap/reserved config fields.
 - [ ] Final `cargo check`, `cargo test`, and `cargo run -- doctor` must pass before release tagging.
 - [ ] Install missing Rust components and rerun `cargo fmt`/`cargo clippy` before publishing.

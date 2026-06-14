@@ -25,14 +25,20 @@ fn draw_three(f:&mut Frame, app:&mut App, area:Rect){
     if let Some(err)=&app.remote_error {
         cur_items.push(ListItem::new(format!("Could not open remote files: {err}" )).style(app.theme.error()));
         cur_items.push(ListItem::new("R retry · h parent · ~ home · Esc back").style(app.theme.muted()));
+    } else if app.remote_loading {
+        cur_items.push(ListItem::new(format!("Opening {} {}", app.remote_path, app.animator.flow())).style(app.theme.muted()));
     } else if app.remote_entries.is_empty() {
         cur_items.push(ListItem::new("This directory is empty.").style(app.theme.muted()));
-        cur_items.push(ListItem::new("n create file/folder · u upload · h parent").style(app.theme.muted()));
+        cur_items.push(ListItem::new("n create · u upload · h parent").style(app.theme.muted()));
     } else {
-        for (i,e) in app.remote_entries.iter().enumerate(){
+        let visible_rows = cols[1].height.saturating_sub(2) as usize;
+        keep_file_selection_visible(app, visible_rows);
+        for (i,e) in app.remote_entries.iter().enumerate().skip(app.file_scroll).take(visible_rows){
             let target=ClickTarget::FileEntry(e.path.clone());
-            app.mouse.register(Rect{x:cols[1].x+1,y:cols[1].y+1+i as u16,width:cols[1].width.saturating_sub(2),height:1}, target.clone());
-            let marker = if i==app.file_selected { "◄" } else { " " };
+            let y = cols[1].y+1+(i-app.file_scroll) as u16;
+            app.mouse.register(Rect{x:cols[1].x+1,y,width:cols[1].width.saturating_sub(2),height:1}, target.clone());
+            let selected = app.selected_file_paths.iter().any(|p| p == &e.path);
+            let marker = if i==app.file_selected { "◄" } else if selected { "*" } else { " " };
             cur_items.push(ListItem::new(format_entry(app, e, marker)).style(if i==app.file_selected{app.theme.selected()}else{button::row_style(app,&target,false)}));
         }
     }
@@ -49,17 +55,40 @@ fn draw_three(f:&mut Frame, app:&mut App, area:Rect){
 
 fn draw_dual(f:&mut Frame, app:&mut App, area:Rect, host:&str){
     let cols=crate::design::layout::files_dual(area);
-    let local=["󰉋 screenshots","󰈙 backup.tar.gz            ◄","󰈙 notes.txt"];
-    let remote:Vec<String> = if app.remote_entries.is_empty() {
-        vec![app.remote_error.clone().unwrap_or_else(||"This directory is empty".into())]
+    keep_file_selection_visible(app, cols[1].height.saturating_sub(2) as usize);
+    keep_local_selection_visible(app, cols[0].height.saturating_sub(2) as usize);
+    let local: Vec<String> = if let Some(err)=&app.local_error {
+        vec![format!("Could not open local folder: {err}")]
+    } else if app.local_entries.is_empty() {
+        vec!["This local folder is empty".into()]
     } else {
-        app.remote_entries.iter().map(|e| format_entry(app, e, "")).collect()
+        app.local_entries.iter().enumerate().skip(app.local_scroll).take(cols[0].height.saturating_sub(2) as usize).map(|(i,e)| {
+            let marker = if i == app.local_selected { "◄" } else { " " };
+            format_entry(app, e, marker)
+        }).collect()
     };
-    let panels=[("LOCAL",local.iter().map(|s|s.to_string()).collect::<Vec<_>>(),0usize), ("REMOTE",remote,1usize)];
+    let remote:Vec<String> = if app.remote_entries.is_empty() {
+        vec![app.remote_error.clone().unwrap_or_else(|| if app.remote_loading {"Opening remote folder".into()} else {"This directory is empty".into()})]
+    } else {
+        app.remote_entries.iter().enumerate().skip(app.file_scroll).take(cols[1].height.saturating_sub(2) as usize).map(|(i,e)| {
+            let marker = if i == app.file_selected { "◄" } else { "" };
+            format_entry(app, e, marker)
+        }).collect()
+    };
+    let panels=[("LOCAL",local,0usize), ("REMOTE",remote,1usize)];
     for (idx,(title,items,pane)) in panels.iter().enumerate(){
         app.mouse.register(cols[idx], ClickTarget::Pane(title.to_lowercase()));
         let mut rows=Vec::new();
-        for (i,it) in items.iter().enumerate(){ let target=ClickTarget::FileEntry(it.clone()); app.mouse.register(Rect{x:cols[idx].x+1,y:cols[idx].y+1+i as u16,width:cols[idx].width.saturating_sub(2),height:1}, target.clone()); rows.push(ListItem::new(it.clone()).style(button::row_style(app,&target,false))); }
+        for (i,it) in items.iter().enumerate(){
+            let target=if *pane==0 {
+                app.local_entries.get(app.local_scroll+i).map(|e|ClickTarget::FileEntry(e.path.clone())).unwrap_or_else(||ClickTarget::Pane("local".into()))
+            } else {
+                app.remote_entries.get(app.file_scroll+i).map(|e|ClickTarget::FileEntry(e.path.clone())).unwrap_or_else(||ClickTarget::Pane("remote".into()))
+            };
+            app.mouse.register(Rect{x:cols[idx].x+1,y:cols[idx].y+1+i as u16,width:cols[idx].width.saturating_sub(2),height:1}, target.clone());
+            let selected = (*pane==0 && app.active_file_pane==0 && app.local_scroll+i==app.local_selected) || (*pane==1 && app.active_file_pane==1 && app.file_scroll+i==app.file_selected);
+            rows.push(ListItem::new(it.clone()).style(if selected { app.theme.selected() } else { button::row_style(app,&target,false) }));
+        }
         f.render_widget(List::new(rows).block(Block::bordered().border_type(crate::design::borders::rounded(!app.ascii)).border_style(if app.active_file_pane==*pane{app.theme.border()}else{app.theme.inactive_border()}).title(format!(" {} · {} ",title, if *pane==0{app.local_path.clone()}else{format!("{}:{}",host,app.remote_path)}))), cols[idx]);
     }
 }
@@ -77,14 +106,33 @@ fn format_entry(app:&App, e:&FileEntry, marker:&str)->String {
 }
 
 fn preview_text(app:&App)->String {
+    if let Some(preview)=&app.remote_preview {
+        return preview.clone();
+    }
     if let Some(err)=&app.remote_error {
         return format!("Could not open this folder.\n\nHost: {}\nPath: {}\nReason: {err}\n\nR retry · h parent · ~ home · Esc back", app.current_host().map(|h|h.alias.as_str()).unwrap_or("no-host"), app.remote_path);
     }
     let Some(entry)=app.remote_entries.get(app.file_selected) else {
-        return "This directory is empty.\n\nn create file/folder · u upload · h parent".into();
+        return if app.remote_loading { "Opening remote folder...".into() } else { "This directory is empty.\n\nn create · u upload · h parent".into() };
     };
     let kind = match entry.kind { FileKind::Directory=>"Directory", FileKind::Symlink=>"Symlink", FileKind::Executable=>"Executable", FileKind::Archive=>"Archive", FileKind::Image=>"Image", FileKind::File=>"File", FileKind::Other=>"Other" };
     format!("{}\n{} · {}\n{} {}\nowner: {}:{}\npath: {}\n\n{}", entry.name, kind, human_size(entry.size), entry.permissions, entry.modified, entry.owner, entry.group, entry.path, if matches!(entry.kind, FileKind::Directory){"Enter/l opens this directory."}else{"Preview/download/edit actions are guarded for sensitive files."})
+}
+
+fn keep_file_selection_visible(app:&mut App, visible_rows:usize){
+    if visible_rows == 0 { return; }
+    if app.file_selected < app.file_scroll { app.file_scroll = app.file_selected; }
+    if app.file_selected >= app.file_scroll + visible_rows {
+        app.file_scroll = app.file_selected.saturating_sub(visible_rows.saturating_sub(1));
+    }
+}
+
+fn keep_local_selection_visible(app:&mut App, visible_rows:usize){
+    if visible_rows == 0 { return; }
+    if app.local_selected < app.local_scroll { app.local_scroll = app.local_selected; }
+    if app.local_selected >= app.local_scroll + visible_rows {
+        app.local_scroll = app.local_selected.saturating_sub(visible_rows.saturating_sub(1));
+    }
 }
 
 fn human_size(size:u64)->String{

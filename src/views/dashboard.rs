@@ -39,7 +39,7 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
         f,
         app,
         shell[2],
-        "/ search · a add · Enter connect · s files · t tunnel · ? help",
+        "/ search · a add · Enter connect · s files · t tunnel · h health · r command · ? help",
     );
 }
 
@@ -53,16 +53,16 @@ fn draw_empty_state(f: &mut Frame, app: &mut App, area: Rect) {
     app.mouse.register(Rect { x: card.x + 25, y: card.y + 7, width: 24, height: 1 }, import_target.clone());
 
     let text = vec![
-        Line::from(Span::styled("No servers here yet", app.theme.title())),
+        Line::from(Span::styled("No hosts here yet", app.theme.title())),
         Line::raw(""),
-        Line::from("SSHDeck can read OpenSSH config, or keep its own managed hosts."),
-        Line::from("Either way, it will not rewrite your SSH setup behind your back."),
+        Line::from("SSHDeck reads ~/.ssh/config on startup and can keep its own host file."),
+        Line::from("It will not rewrite your SSH setup unless you choose the Include helper."),
         Line::raw(""),
-        Line::from(Span::styled("Start small:", app.theme.muted())),
+        Line::from(Span::styled("Start with one host:", app.theme.muted())),
         Line::from(vec![
             button::label(app, "Add Host", &add_target, ButtonKind::Primary),
             Span::raw("  "),
-            button::label(app, "Import SSH Config", &import_target, ButtonKind::Secondary),
+            button::label(app, "Use ~/.ssh/config", &import_target, ButtonKind::Secondary),
         ]),
         Line::raw(""),
         Line::from(Span::styled("Managed hosts live in ~/.config/sshdeck/ssh_config", app.theme.muted())),
@@ -201,7 +201,7 @@ fn draw_details(f: &mut Frame, app: &mut App, area: Rect) {
 
     let button_rows = [
         [("Connect", &connect, ButtonKind::Primary), ("Files", &files, ButtonKind::Secondary)],
-        [("Tunnel", &tunnel, ButtonKind::Secondary), ("Health", &health, ButtonKind::Secondary)],
+        [("Tunnel", &tunnel, ButtonKind::Secondary), ("Check", &health, ButtonKind::Secondary)],
         [("Edit", &edit, ButtonKind::Secondary), ("", &edit, ButtonKind::Secondary)],
     ];
 
@@ -231,10 +231,11 @@ fn draw_details(f: &mut Frame, app: &mut App, area: Rect) {
 
     lines.extend([
         Line::raw(""),
-        Line::from(Span::styled("What this screen will do", app.theme.muted())),
-        Line::from(format!("connects with: ssh {}", alias)),
-        Line::from(format!("health: {}", app.health.uptime)),
-        Line::from("Files, tunnels, and commands go through your system OpenSSH."),
+        Line::from(Span::styled("What happens next", app.theme.muted())),
+        Line::from(format!("connect  ssh {}", alias)),
+        Line::from("files    browse through your system OpenSSH"),
+        Line::from("health   queues uptime, disk, memory, and kernel checks"),
+        Line::from("command  opens the guarded command runner"),
     ]);
 
     f.render_widget(

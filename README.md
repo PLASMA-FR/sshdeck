@@ -35,6 +35,7 @@ Implemented today:
 - health panel placeholder with intended safe command list
 - SSHDeck Files prototype: remote directory listing over `ssh`, three-column browsing, metadata preview, hidden-files toggle, refresh, breadcrumbs, transfer queue modal, and dual-pane UI placeholder
 - settings screen for theme, animation, Unicode/Nerd Font, mouse, hidden files, and config path
+- backward-compatible app config fields for bookmarks, hidden imported hosts, recent hosts, tunnel presets, and last file paths
 - local logs with redaction for sensitive path markers and identity-file arguments
 - `sshdeck doctor` for local environment checks
 - unit tests for parsing, command generation, safety helpers, transfer queue state, and mouse hit regions
@@ -46,8 +47,8 @@ Not implemented yet:
 - remote file delete, rename, new-file, chmod, and chown operations
 - real command runner execution from the TUI
 - remote health command execution and parsing
-- persistent imported-host hiding across restarts
-- full bookmarks UI
+- TUI wiring for persistent imported-host hiding, recent hosts, tunnel presets, and last-path restore
+- full bookmarks UI beyond the config schema
 - true local-pane filesystem model in dual-pane Files mode
 - live starting and stopping of tunnels from the TUI
 
@@ -58,17 +59,23 @@ SSHDeck is not published on crates.io yet. Install from source:
 ```bash
 git clone https://github.com/PLASMA-FR/sshdeck
 cd sshdeck
-cargo install --path .
+bash scripts/install.sh
 sshdeck
+```
+
+Direct Cargo install from the checkout also works:
+
+```bash
+cargo install --locked --path .
 ```
 
 Development commands:
 
 ```bash
-cargo run
-cargo run -- doctor
-cargo run -- import
-cargo test
+cargo run --locked
+cargo run --locked -- doctor
+cargo run --locked -- import
+cargo test --locked
 ```
 
 ## Quickstart
@@ -99,6 +106,39 @@ Quick connect from the shell:
 sshdeck user@host
 ```
 
+CLI reference:
+
+```text
+sshdeck [OPTIONS] [TARGET] [COMMAND]
+
+Commands:
+  doctor          check local OpenSSH tools, config, terminal, and defaults
+  import          parse ~/.ssh/config, report count, and create app config if needed
+
+Options:
+  --config <PATH>       use a specific SSHDeck config.toml
+  --theme <THEME>       override the configured theme for this run
+  --no-animations       disable animations for this run
+  --ascii               force ASCII-friendly rendering
+  --mouse               force mouse capture on for this run
+  --no-mouse            disable mouse capture for this run
+  --quick <TARGET>      quick-connect with system ssh
+  -h, --help            print help
+  -V, --version         print version
+```
+
+`TARGET` and `--quick <TARGET>` both bypass the TUI and run system `ssh -- <TARGET>`.
+
+Config state fields now accepted in `~/.config/sshdeck/config.toml`:
+
+- `hidden_imported_hosts = []`
+- `recent_hosts = []`
+- `[last_paths]` with `local` and `[last_paths.remote_by_host]`
+- `[tunnel_presets.<name>]`
+- `[bookmarks.<group>]`
+
+These fields are backward-compatible. Missing fields default safely; several are reserved until the TUI restore/preset/bookmark workflows are wired.
+
 ## Features
 
 - SSH host dashboard
@@ -108,6 +148,7 @@ sshdeck user@host
 - broad mouse support for implemented views
 - fuzzy search
 - groups, tags, favorites, and notes in local metadata
+- reserved config state for hidden imported hosts, recent hosts, tunnel presets, last paths, and bookmarks
 - connection launcher using system OpenSSH
 - port forwarding command generator
 - command runner prototype with dangerous-command blocking
@@ -259,9 +300,9 @@ Please run the checks that are available in your environment:
 
 ```bash
 cargo fmt
-cargo check
-cargo clippy -- -D warnings
-cargo test
+cargo check --locked
+cargo clippy --locked -- -D warnings
+cargo test --locked
 npm run docs:build
 ```
 
