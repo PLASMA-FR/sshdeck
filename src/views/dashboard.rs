@@ -192,6 +192,7 @@ fn draw_details(f: &mut Frame, app: &mut App, area: Rect) {
     let notes = host.notes.clone().unwrap_or_else(|| "No note yet. Add the thing you usually forget.".into());
     let group = host.group.clone().unwrap_or_else(|| "Ungrouped".into());
     let tags = if host.tags.is_empty() { "No tags".into() } else { host.tags.join(", ") };
+    let profile = host.access_profile();
 
     let connect = ClickTarget::HostConnectButton(idx);
     let files = ClickTarget::HostFilesButton(idx);
@@ -211,18 +212,31 @@ fn draw_details(f: &mut Frame, app: &mut App, area: Rect) {
         Line::raw(""),
         Line::from(format!("login  {}@{}", user, target)),
         Line::from(format!("where  port {} · {}", host.port_text(), group)),
+        Line::from(format!("auth   {}", profile.auth)),
+        Line::from(format!("path   {}", profile.path)),
+        Line::from(format!("agent  {}", profile.agent)),
+        Line::from(format!("trust  {}", profile.host_key)),
         Line::from(Span::styled(format!("tags   {tags}"), app.theme.muted())),
         Line::raw(""),
         Line::from(Span::styled(notes, app.theme.muted())),
         Line::raw(""),
     ];
 
+    if let Some(warning) = profile.warnings.first() {
+        lines.push(Line::from(Span::styled(format!("note   {warning}"), app.theme.warning())));
+        lines.push(Line::raw(""));
+    } else {
+        lines.push(Line::from(Span::styled("safe   credentials stay with OpenSSH, not SSHDeck", app.theme.success())));
+        lines.push(Line::raw(""));
+    }
+
+    let button_start_y = area.y + 1 + lines.len() as u16;
     for (row_index, row) in button_rows.iter().enumerate() {
         let mut spans = Vec::new();
         for (col_index, (label, target, kind)) in row.iter().enumerate() {
             if label.is_empty() { continue; }
             let x = area.x + 2 + col_index as u16 * 14;
-            let y = area.y + 10 + row_index as u16;
+            let y = button_start_y + row_index as u16;
             app.mouse.register(Rect { x, y, width: 13, height: 1 }, (*target).clone());
             spans.push(button::label(app, label, target, *kind));
         }
@@ -233,7 +247,7 @@ fn draw_details(f: &mut Frame, app: &mut App, area: Rect) {
         Line::raw(""),
         Line::from(Span::styled("What happens next", app.theme.muted())),
         Line::from(format!("connect  ssh {}", alias)),
-        Line::from("files    browse through your system OpenSSH"),
+        Line::from("files    browse with system OpenSSH tools"),
         Line::from("health   queues uptime, disk, memory, and kernel checks"),
         Line::from("command  opens the guarded command runner"),
     ]);

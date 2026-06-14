@@ -16,6 +16,18 @@ SSHDeck reads imported hosts from `~/.ssh/config` and writes app-created hosts t
 
 Metadata includes groups, tags, favorites, notes, bookmarks, UI preferences, file-manager preferences, and reserved state for hidden imported hosts, recent hosts, tunnel presets, and last paths.
 
+## Access profile
+
+Each selected host shows an inferred access profile in the dashboard and detail view:
+
+- auth source: OpenSSH default/agent, identity file, certificate, or hardware-backed `*-sk` key naming
+- access path: direct or via `ProxyJump`
+- agent forwarding state
+- host-key posture from `StrictHostKeyChecking` and `UserKnownHostsFile`
+- saved local/remote forward count
+
+The profile is read from OpenSSH-compatible fields. SSHDeck does not store private keys or passwords.
+
 ## Add a host
 
 Press `a` or click Add Host. Fill in:
@@ -30,6 +42,8 @@ Press `a` or click Add Host. Fill in:
 - Notes
 
 SSHDeck validates required fields, numeric ports, leading-dash aliases, and config-control characters before writing managed config.
+
+Managed config rendering also preserves OpenSSH-native security directives when they are present on a host object: `CertificateFile`, `StrictHostKeyChecking`, and `UserKnownHostsFile`.
 
 ## Include managed config
 

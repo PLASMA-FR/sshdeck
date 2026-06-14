@@ -1022,7 +1022,12 @@ impl App {
             self.toast(ToastLevel::Warning, e);
             return;
         }
-        let command = self.tunnel.ssh_command();
+        let command = self
+            .hosts
+            .iter()
+            .find(|host| host.alias == self.tunnel.host_alias)
+            .map(|host| self.tunnel.ssh_command_for_host(host))
+            .unwrap_or_else(|| self.tunnel.ssh_command());
         let display = command.display();
         match Command::new(&command.program)
             .args(&command.args)

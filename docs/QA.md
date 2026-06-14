@@ -6,7 +6,7 @@ Status: reviewed during the end-to-end audit pass. Items marked complete were ve
 
 - [x] `cargo test --quiet` passes after audit fixes.
 - [x] `cargo check` scheduled in final release check.
-- [ ] `cargo fmt` could not be run in this environment because the `rustfmt` cargo subcommand is not installed.
+- [ ] `cargo fmt` could not be run in this environment if the `rustfmt` cargo subcommand is not installed.
 - [ ] `cargo clippy` could not be run if the `clippy` cargo subcommand is unavailable; final output records the actual result.
 - [x] Project has a clean Rust module layout under `src/`.
 - [x] README was reviewed for truthfulness against implementation.
@@ -24,6 +24,7 @@ Release gate:
 
 - [x] Empty-host state exists and offers add/import/help actions.
 - [x] Host rows render with details and quick action buttons.
+- [x] Selected-host details show access profile: auth, jump path, agent forwarding, host-key posture, and forwards.
 - [x] Sidebar mouse regions are registered.
 - [x] Search mode filters hosts with fuzzy matching.
 - [x] Status bar shows view-specific shortcuts.
@@ -63,7 +64,7 @@ Known partial items:
 - [ ] Context menus are mostly mouse-driven and need keyboard navigation.
 - [ ] Files list scroll state is not yet fully reflected in rendering.
 - [ ] File double-click currently selects/toasts rather than fully opening directories.
-- [ ] Dual-pane local rows are UI placeholders, not real local filesystem entries.
+- [x] Dual-pane local rows list real local filesystem entries.
 - [ ] Toggling mouse off in settings updates app state but terminal mouse capture is only configured at startup/cleanup.
 
 ## Keyboard checks
@@ -76,7 +77,8 @@ Known partial items:
 
 Known partial items:
 
-- [ ] File shortcuts for upload/download/delete/rename/new/edit/bookmarks/visual selection are not implemented and README now marks them as roadmap.
+- [x] File shortcuts for upload/download/delete, preview, bookmarks, transfer queue, command mode, and visual selection are handled.
+- [ ] A full bookmarks picker UI and richer multi-select actions remain roadmap.
 - [ ] Command palette lacks keyboard result selection/filter execution; README treats it as an MVP command palette, not a complete launcher.
 - [ ] Transfer modal has no dedicated transfer-row keyboard behavior yet.
 
@@ -87,8 +89,10 @@ Known partial items:
 - [x] Symlink `ls -la` parsing strips ` -> target` from entry name/path.
 - [x] Sensitive preview helper blocks `.env`, private keys, and dangerous system files before invoking ssh.
 - [x] Large preview helper path has a max-byte guard.
-- [x] README marks real SFTP/scp transfer execution, editing, delete/rename/new-file, bookmarks, and full dual-pane local model as not implemented.
-- [x] Docs mark upload/download shortcuts and bookmarks UI as reserved until execution workflows are wired.
+- [x] Upload/download execution uses `scp` in a background task.
+- [x] Safe remote edit downloads to a temp file, opens `$EDITOR`, creates a remote backup, uploads, and refreshes.
+- [x] Remote mkdir, touch, rename, delete, chmod, and chown flows exist with confirmations.
+- [x] Docs mark native SFTP, byte-accurate transfer progress, retries, overwrite prompts, and full bookmarks picker as roadmap.
 
 Manual follow-up:
 
@@ -100,34 +104,34 @@ Manual follow-up:
 
 - [x] Local forward command generation is tested.
 - [x] Dynamic forward command generation is tested with quoted alias.
-- [x] README marks live start/stop as not implemented.
+- [x] Live start/stop process management is implemented.
+- [x] Tunnel commands use the resolved host profile when the host exists in SSHDeck inventory.
 - [x] Tunnel preset config fields are documented as reserved until TUI preset editing/loading is wired.
 
 Manual follow-up:
 
-- [ ] Add editable tunnel fields before claiming full tunnel builder support.
-- [ ] Start/stop process management remains roadmap.
+- [ ] Add editable tunnel fields before claiming full tunnel preset management.
 
 ## Command runner checks
 
 - [x] Dangerous command detection has tests.
 - [x] Additional recursive permission form (`chmod -R777`) is detected.
-- [x] README marks remote command execution as prototype/not wired.
+- [x] Remote command execution is wired with timeout and output cap.
+- [x] Dangerous command patterns require typed confirmation.
 
 Manual follow-up:
 
-- [ ] Implement explicit confirmation flow if custom remote execution is wired later.
-- [ ] Add timeout/output-size limits when execution is enabled.
+- [ ] Expand dangerous-command detection as new risky patterns are found.
 
 ## Health checks
 
 - [x] Doctor/local health checks exist.
-- [x] README marks remote server health execution as placeholder.
+- [x] Remote server health execution and parsing are implemented.
+- [x] Missing `docker` and `systemctl` are tolerated.
 
 Manual follow-up:
 
-- [ ] Wire safe remote health commands with timeouts and output parsing.
-- [ ] Handle missing `docker`, missing `systemctl`, and permission errors.
+- [ ] Verify permission-denied cases against real hosts.
 
 ## Error state checks
 
@@ -149,6 +153,8 @@ Manual follow-up:
 - [x] Logs redact identity-file arguments and common sensitive path markers.
 - [x] Sensitive preview helper blocks before invoking ssh.
 - [x] README no longer claims unimplemented remote delete/edit/overwrite guarantees.
+- [x] Access profile warns about enabled agent forwarding and disabled strict host-key checking.
+- [x] Doctor checks OpenSSH key/agent tooling, security-key support, known_hosts, certificates, and per-host known_hosts files.
 
 ## Config compatibility checks
 

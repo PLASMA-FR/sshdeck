@@ -76,10 +76,13 @@ pub fn render_managed_host(host: &SshHost) -> String {
     if let Some(v) = &host.user { out.push_str(&format!("  User {}\n", one_line(v))); }
     out.push_str(&format!("  Port {}\n", host.port.unwrap_or(22)));
     if let Some(v) = &host.identity_file { out.push_str(&format!("  IdentityFile {}\n", one_line(&v.display().to_string()))); }
+    if let Some(v) = &host.certificate_file { out.push_str(&format!("  CertificateFile {}\n", one_line(&v.display().to_string()))); }
     if let Some(v) = &host.proxy_jump { out.push_str(&format!("  ProxyJump {}\n", one_line(v))); }
     for v in &host.local_forwards { out.push_str(&format!("  LocalForward {}\n", one_line(v))); }
     for v in &host.remote_forwards { out.push_str(&format!("  RemoteForward {}\n", one_line(v))); }
     if let Some(v) = &host.forward_agent { out.push_str(&format!("  ForwardAgent {}\n", one_line(v))); }
+    if let Some(v) = &host.strict_host_key_checking { out.push_str(&format!("  StrictHostKeyChecking {}\n", one_line(v))); }
+    if let Some(v) = &host.user_known_hosts_file { out.push_str(&format!("  UserKnownHostsFile {}\n", one_line(&v.display().to_string()))); }
     if let Some(v) = host.server_alive_interval { out.push_str(&format!("  ServerAliveInterval {}\n", v)); }
     out.push('\n');
     out
@@ -185,14 +188,17 @@ mod tests {
 
     #[test]
     fn renders_managed_openssh_host_without_metadata() {
-        let host = SshHost { alias: "my-vps".into(), hostname: Some("192.168.1.20".into()), user: Some("root".into()), port: Some(2222), identity_file: Some(PathBuf::from("~/.ssh/id_ed25519")), proxy_jump: Some("bastion".into()), tags: vec!["production".into()], ..Default::default() };
+        let host = SshHost { alias: "my-vps".into(), hostname: Some("192.168.1.20".into()), user: Some("root".into()), port: Some(2222), identity_file: Some(PathBuf::from("~/.ssh/id_ed25519")), certificate_file: Some(PathBuf::from("~/.ssh/id_ed25519-cert.pub")), proxy_jump: Some("bastion".into()), strict_host_key_checking: Some("yes".into()), user_known_hosts_file: Some(PathBuf::from("~/.ssh/known_hosts_prod")), tags: vec!["production".into()], ..Default::default() };
         let rendered = render_managed_host(&host);
         assert!(rendered.contains("Host my-vps\n"));
         assert!(rendered.contains("  HostName 192.168.1.20\n"));
         assert!(rendered.contains("  User root\n"));
         assert!(rendered.contains("  Port 2222\n"));
         assert!(rendered.contains("  IdentityFile ~/.ssh/id_ed25519\n"));
+        assert!(rendered.contains("  CertificateFile ~/.ssh/id_ed25519-cert.pub\n"));
         assert!(rendered.contains("  ProxyJump bastion\n"));
+        assert!(rendered.contains("  StrictHostKeyChecking yes\n"));
+        assert!(rendered.contains("  UserKnownHostsFile ~/.ssh/known_hosts_prod\n"));
         assert!(!rendered.contains("production"));
     }
 

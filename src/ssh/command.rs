@@ -34,6 +34,7 @@ fn ssh_args_for_with_forwards(host: &SshHost, include_forwards: bool) -> Vec<Str
     if let Some(proxy_jump) = &host.proxy_jump {
         args.extend(["-J".into(), proxy_jump.clone()]);
     }
+    args.extend(ssh_config_option_args_for(host));
     if host
         .forward_agent
         .as_deref()
@@ -55,6 +56,25 @@ fn ssh_args_for_with_forwards(host: &SshHost, include_forwards: bool) -> Vec<Str
 
     args.push("--".into());
     args.push(ssh_destination_for(host));
+    args
+}
+
+pub fn ssh_config_option_args_for(host: &SshHost) -> Vec<String> {
+    let mut args = Vec::new();
+    if let Some(certificate) = &host.certificate_file {
+        args.extend(["-o".into(), format!("CertificateFile={}", certificate.display())]);
+    }
+    if let Some(strict) = host
+        .strict_host_key_checking
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        args.extend(["-o".into(), format!("StrictHostKeyChecking={strict}")]);
+    }
+    if let Some(known_hosts) = &host.user_known_hosts_file {
+        args.extend(["-o".into(), format!("UserKnownHostsFile={}", known_hosts.display())]);
+    }
     args
 }
 
@@ -143,6 +163,7 @@ fn scp_base_args_for(host: &SshHost) -> Vec<String> {
     if let Some(proxy_jump) = &host.proxy_jump {
         args.extend(["-J".into(), proxy_jump.clone()]);
     }
+    args.extend(ssh_config_option_args_for(host));
     args
 }
 
@@ -397,8 +418,11 @@ exit 255
             user: Some("deploy".into()),
             port: Some(2222),
             identity_file: Some(PathBuf::from("~/.ssh/id_ed25519")),
+            certificate_file: Some(PathBuf::from("~/.ssh/id_ed25519-cert.pub")),
             proxy_jump: Some("bastion".into()),
             forward_agent: Some("yes".into()),
+            strict_host_key_checking: Some("yes".into()),
+            user_known_hosts_file: Some(PathBuf::from("~/.ssh/known_hosts_prod")),
             server_alive_interval: Some(30),
             ..Default::default()
         };
@@ -413,6 +437,12 @@ exit 255
                 "~/.ssh/id_ed25519",
                 "-J",
                 "bastion",
+                "-o",
+                "CertificateFile=~/.ssh/id_ed25519-cert.pub",
+                "-o",
+                "StrictHostKeyChecking=yes",
+                "-o",
+                "UserKnownHostsFile=~/.ssh/known_hosts_prod",
                 "-A",
                 "-o",
                 "ServerAliveInterval=30",
@@ -420,7 +450,7 @@ exit 255
                 "deploy@10.0.0.12",
             ]
         );
-        assert_eq!(ssh_command_for(&h), "ssh -p 2222 -i ~/.ssh/id_ed25519 -J bastion -A -o ServerAliveInterval=30 -- deploy@10.0.0.12");
+        assert_eq!(ssh_command_for(&h), "ssh -p 2222 -i ~/.ssh/id_ed25519 -J bastion -o CertificateFile=~/.ssh/id_ed25519-cert.pub -o StrictHostKeyChecking=yes -o UserKnownHostsFile=~/.ssh/known_hosts_prod -A -o ServerAliveInterval=30 -- deploy@10.0.0.12");
     }
 
     #[test]
@@ -585,6 +615,7 @@ exit 255
             hostname: Some("10.0.0.2".into()),
             user: Some("deploy".into()),
             identity_file: Some(PathBuf::from("/tmp/key with space")),
+            strict_host_key_checking: Some("accept-new".into()),
             ..Default::default()
         };
 
@@ -593,6 +624,8 @@ exit 255
             vec![
                 "-i",
                 "/tmp/key with space",
+                "-o",
+                "StrictHostKeyChecking=accept-new",
                 "-r",
                 "--",
                 "-local-file",

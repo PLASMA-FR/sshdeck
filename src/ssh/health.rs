@@ -7,12 +7,185 @@ use crate::{
     },
     ssh::{command::run_ssh_command_for, host::SshHost},
 };
-#[derive(Debug, Clone, Default)] pub struct HealthInfo { pub uptime:String, pub kernel:String, pub memory:String, pub disk:String, pub failed_services:u32, pub docker_containers:u32 }
-impl HealthInfo { pub fn empty() -> Self { Self { uptime:"unknown".into(), kernel:"unknown".into(), memory:"unknown".into(), disk:"unknown".into(), failed_services:0, docker_containers:0 } } }
-pub struct DoctorReport { checks: Vec<(String,bool,String)> }
-fn exists(bin:&str)->bool{ Command::new("sh").arg("-c").arg(format!("command -v {bin} >/dev/null 2>&1")).status().map(|s|s.success()).unwrap_or(false) }
-impl DoctorReport { pub fn run(cfg:&AppConfig)->Self{ let mut c=Vec::new(); c.push(("ssh binary".into(), exists("ssh"), "required for connections".into())); c.push(("scp binary".into(), exists("scp"), "required for transfers".into())); c.push(("sftp binary".into(), exists("sftp"), "required for batch SFTP".into())); let term=std::env::var("TERM").unwrap_or_default(); let colorterm=std::env::var("COLORTERM").unwrap_or_default(); c.push(("terminal mouse reporting".into(), !term.is_empty() && term != "dumb", format!("TERM={term}"))); c.push(("mouse enabled".into(), cfg.ui.mouse, "[ui].mouse".into())); c.push(("color support".into(), term.contains("color") || colorterm.contains("truecolor") || colorterm.contains("24bit"), format!("TERM={term} COLORTERM={colorterm}"))); c.push(("unicode mode".into(), cfg.ui.unicode, format!("unicode={} ascii fallback available", cfg.ui.unicode))); c.push(("nerd font mode".into(), cfg.ui.nerd_font, format!("nerd_font={}", cfg.ui.nerd_font))); let size=std::env::var("COLUMNS").ok().zip(std::env::var("LINES").ok()).map(|(c,l)|format!("{}x{}",c,l)).unwrap_or_else(||"unknown".into()); c.push(("terminal size".into(), true, size)); let ssh_cfg=default_ssh_config_path(); c.push(("~/.ssh/config".into(), ssh_cfg.as_ref().is_some_and(|p|p.exists()), "missing is OK; add hosts in SSHDeck".into())); let parsed=parse_default_ssh_config(); c.push(("SSH config parse".into(), parsed.is_ok(), parsed.as_ref().map(|h|format!("{} host(s)",h.len())).unwrap_or_else(|e|e.to_string()))); c.push(("managed SSH config".into(), crate::config::managed_hosts::managed_config_path().parent().is_some_and(Path::exists), crate::config::managed_hosts::managed_config_path().display().to_string())); if let Some(home)=dirs::home_dir(){ let ssh=home.join(".ssh"); c.push(("~/.ssh permissions".into(), ssh.exists(), ssh.display().to_string())); } for h in parsed.unwrap_or_default(){ if let Some(k)=h.identity_file { c.push((format!("key for {}", h.alias), k.exists(), k.display().to_string())); }} c.push(("app config validity".into(), true, cfg.path.display().to_string())); c.push(("default local files dir".into(), expand_tilde(&cfg.files.default_local_dir).exists(), cfg.files.default_local_dir.clone())); Self{checks:c} } pub fn render_text(&self)->String{ let mut s=String::from("SSHDeck doctor\n\n"); for (name,ok,detail) in &self.checks { s.push_str(&format!("{} {:28} {}\n", if *ok {"✓"} else {"⚠"}, name, detail)); } s } }
-fn expand_tilde(p:&str)->std::path::PathBuf{ if let Some(rest)=p.strip_prefix("~/"){ dirs::home_dir().unwrap_or_default().join(rest) } else { p.into() } }
+#[derive(Debug, Clone, Default)]
+pub struct HealthInfo {
+    pub uptime: String,
+    pub kernel: String,
+    pub memory: String,
+    pub disk: String,
+    pub failed_services: u32,
+    pub docker_containers: u32,
+}
+
+impl HealthInfo {
+    pub fn empty() -> Self {
+        Self {
+            uptime: "unknown".into(),
+            kernel: "unknown".into(),
+            memory: "unknown".into(),
+            disk: "unknown".into(),
+            failed_services: 0,
+            docker_containers: 0,
+        }
+    }
+}
+
+pub struct DoctorReport {
+    checks: Vec<(String, bool, String)>,
+}
+
+fn exists(bin: &str) -> bool {
+    Command::new("sh")
+        .arg("-c")
+        .arg(format!("command -v {bin} >/dev/null 2>&1"))
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+impl DoctorReport {
+    pub fn run(cfg: &AppConfig) -> Self {
+        let mut checks = Vec::new();
+        checks.push(("ssh binary".into(), exists("ssh"), "required for connections".into()));
+        checks.push(("scp binary".into(), exists("scp"), "required for transfers".into()));
+        checks.push(("sftp binary".into(), exists("sftp"), "required for batch SFTP".into()));
+        checks.push(("ssh-keygen binary".into(), exists("ssh-keygen"), "needed for key and certificate workflows".into()));
+        checks.push(("ssh-add binary".into(), exists("ssh-add"), "needed for agent key management".into()));
+        checks.push(("ssh-agent binary".into(), exists("ssh-agent"), "needed when you want agent-backed keys".into()));
+        checks.push(("security-key auth".into(), true, security_key_support_detail()));
+        checks.push((
+            "agent socket".into(),
+            true,
+            std::env::var("SSH_AUTH_SOCK")
+                .map(|sock| format!("SSH_AUTH_SOCK={sock}"))
+                .unwrap_or_else(|_| "not set; OpenSSH can still prompt or use key files".into()),
+        ));
+
+        let term = std::env::var("TERM").unwrap_or_default();
+        let colorterm = std::env::var("COLORTERM").unwrap_or_default();
+        checks.push(("terminal mouse reporting".into(), !term.is_empty() && term != "dumb", format!("TERM={term}")));
+        checks.push(("mouse enabled".into(), cfg.ui.mouse, "[ui].mouse".into()));
+        checks.push((
+            "color support".into(),
+            term.contains("color") || colorterm.contains("truecolor") || colorterm.contains("24bit"),
+            format!("TERM={term} COLORTERM={colorterm}"),
+        ));
+        checks.push(("unicode mode".into(), cfg.ui.unicode, format!("unicode={} ascii fallback available", cfg.ui.unicode)));
+        checks.push(("nerd font mode".into(), cfg.ui.nerd_font, format!("nerd_font={}", cfg.ui.nerd_font)));
+
+        let size = std::env::var("COLUMNS")
+            .ok()
+            .zip(std::env::var("LINES").ok())
+            .map(|(cols, lines)| format!("{cols}x{lines}"))
+            .unwrap_or_else(|| "unknown".into());
+        checks.push(("terminal size".into(), true, size));
+
+        let ssh_cfg = default_ssh_config_path();
+        checks.push(("~/.ssh/config".into(), ssh_cfg.as_ref().is_some_and(|p| p.exists()), "missing is OK; add hosts in SSHDeck".into()));
+        let parsed = parse_default_ssh_config();
+        checks.push((
+            "SSH config parse".into(),
+            parsed.is_ok(),
+            parsed.as_ref().map(|h| format!("{} host(s)", h.len())).unwrap_or_else(|e| e.to_string()),
+        ));
+        checks.push((
+            "managed SSH config".into(),
+            crate::config::managed_hosts::managed_config_path().parent().is_some_and(Path::exists),
+            crate::config::managed_hosts::managed_config_path().display().to_string(),
+        ));
+
+        if let Some(home) = dirs::home_dir() {
+            let ssh = home.join(".ssh");
+            let (ok, detail) = ssh_dir_status(&ssh);
+            checks.push(("~/.ssh permissions".into(), ok, detail));
+            let known_hosts = ssh.join("known_hosts");
+            checks.push((
+                "known_hosts".into(),
+                known_hosts.exists(),
+                if known_hosts.exists() {
+                    known_hosts.display().to_string()
+                } else {
+                    "missing; OpenSSH will ask before trusting first host key".into()
+                },
+            ));
+        }
+
+        for host in parsed.unwrap_or_default() {
+            if let Some(key) = host.identity_file {
+                checks.push((format!("key for {}", host.alias), key.exists(), key.display().to_string()));
+            }
+            if let Some(cert) = host.certificate_file {
+                checks.push((format!("cert for {}", host.alias), cert.exists(), cert.display().to_string()));
+            }
+            if let Some(known_hosts) = host.user_known_hosts_file {
+                checks.push((format!("known_hosts for {}", host.alias), known_hosts.exists(), known_hosts.display().to_string()));
+            }
+        }
+
+        checks.push(("app config validity".into(), true, cfg.path.display().to_string()));
+        checks.push(("default local files dir".into(), expand_tilde(&cfg.files.default_local_dir).exists(), cfg.files.default_local_dir.clone()));
+
+        Self { checks }
+    }
+
+    pub fn render_text(&self) -> String {
+        let mut text = String::from("SSHDeck doctor\n\n");
+        for (name, ok, detail) in &self.checks {
+            text.push_str(&format!("{} {:28} {}\n", if *ok { "✓" } else { "⚠" }, name, detail));
+        }
+        text
+    }
+}
+
+fn expand_tilde(p: &str) -> std::path::PathBuf {
+    if let Some(rest) = p.strip_prefix("~/") {
+        dirs::home_dir().unwrap_or_default().join(rest)
+    } else {
+        p.into()
+    }
+}
+
+fn security_key_support_detail() -> String {
+    let output = Command::new("ssh").args(["-Q", "key"]).output();
+    match output {
+        Ok(output) if output.status.success() && supports_security_key_auth(&String::from_utf8_lossy(&output.stdout)) => {
+            "local OpenSSH advertises FIDO/security-key key types".into()
+        }
+        Ok(output) if output.status.success() => {
+            "local OpenSSH does not advertise FIDO/security-key key types".into()
+        }
+        Ok(output) => {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            if stderr.is_empty() { "ssh -Q key failed".into() } else { stderr }
+        }
+        Err(err) => format!("could not run ssh -Q key: {err}"),
+    }
+}
+
+fn supports_security_key_auth(keys: &str) -> bool {
+    let lower = keys.to_ascii_lowercase();
+    lower.contains("sk-ssh") || lower.contains("ed25519-sk") || lower.contains("ecdsa-sk")
+}
+
+fn ssh_dir_status(path: &Path) -> (bool, String) {
+    if !path.exists() {
+        return (false, path.display().to_string());
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(metadata) = path.metadata() {
+            let mode = metadata.permissions().mode() & 0o777;
+            return (
+                mode & 0o077 == 0,
+                format!("{} mode {:03o}", path.display(), mode),
+            );
+        }
+    }
+
+    (true, path.display().to_string())
+}
 pub fn health_commands() -> [&'static str; 6] {
     [
         "uptime 2>&1 || true",
@@ -206,5 +379,12 @@ docker not installed
         let info = summarize(&SshHost::default(), output);
         assert_eq!(info.failed_services, 0);
         assert_eq!(info.docker_containers, 0);
+    }
+
+    #[test]
+    fn detects_security_key_key_types_from_openssh_query() {
+        assert!(supports_security_key_auth("ssh-ed25519\nsk-ssh-ed25519@openssh.com\n"));
+        assert!(supports_security_key_auth("ecdsa-sk\n"));
+        assert!(!supports_security_key_auth("ssh-ed25519\nrsa-sha2-512\n"));
     }
 }

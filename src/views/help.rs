@@ -10,7 +10,7 @@ The shape of the app
   Dashboard     Pick a server, see enough context, act safely.
   Files         Move like Yazi: parent, current folder, preview.
   Tunnels       Build the SSH command before starting it.
-  Commands      Stage a command and block destructive patterns.
+  Commands      Run a command with timeout, cap, and guardrails.
 
 Keyboard
   ↑/k       move up
@@ -38,8 +38,9 @@ SSHDeck Files
 
 What is real today
   Health queues uptime, disk, memory, and kernel checks.
-  Command mode parses locally and blocks risky patterns before remote execution.
-  File edit, rename, upload, download, and delete entries are guarded stubs for now.
+  Command mode parses locally and confirms risky patterns before remote execution.
+  Files can upload, download, edit with backup, and confirm remote mutations.
+  Access profiles show auth, jump, agent, host-key, and forwarding posture.
 
 If something feels scary, SSHDeck should slow down and explain why.";
 

@@ -1,6 +1,6 @@
 # Health checks
 
-The health panel is intended to fetch server status over SSH and show compact meters.
+The health panel fetches read-only server status over SSH and shows compact meters in the host detail view.
 
 ## Intended checks
 
@@ -13,7 +13,7 @@ The health panel is intended to fetch server status over SSH and show compact me
 
 ## Current status
 
-The panel shell and data structures exist, but remote execution and parsing are still roadmap items.
+Remote execution and parsing are implemented. SSHDeck runs guarded read-only commands with a timeout, tolerates missing `systemctl` or Docker, and summarizes uptime, disk, memory, kernel, failed services, and Docker container count.
 
 ## Design requirement
 

@@ -30,10 +30,13 @@ pub fn parse_ssh_config(input: &str) -> Vec<SshHost> {
             "user" => h.user = Some(val),
             "port" => h.port = val.parse().ok(),
             "identityfile" => h.identity_file = Some(expand_tilde(&val)),
+            "certificatefile" => h.certificate_file = Some(expand_tilde(&val)),
             "proxyjump" => h.proxy_jump = Some(val),
             "localforward" => h.local_forwards.push(val),
             "remoteforward" => h.remote_forwards.push(val),
             "forwardagent" => h.forward_agent = Some(val),
+            "stricthostkeychecking" => h.strict_host_key_checking = Some(val),
+            "userknownhostsfile" => h.user_known_hosts_file = Some(expand_tilde(&val)),
             "serveraliveinterval" => h.server_alive_interval = val.parse().ok(),
             _ => {}
         }
@@ -52,10 +55,13 @@ mod tests {
   User root
   Port 2222
   IdentityFile ~/.ssh/id_ed25519
+  CertificateFile ~/.ssh/id_ed25519-cert.pub
   ProxyJump bastion
   LocalForward 8080 localhost:80
   RemoteForward 9090 localhost:90
   ForwardAgent yes
+  StrictHostKeyChecking yes
+  UserKnownHostsFile ~/.ssh/known_hosts_prod
   ServerAliveInterval 60
 Host *
   User ignored
@@ -64,5 +70,8 @@ Host *
         assert_eq!(hosts.len(), 1);
         let h=&hosts[0];
         assert_eq!(h.alias, "web-prod-1"); assert_eq!(h.hostname.as_deref(), Some("1.2.3.4")); assert_eq!(h.user.as_deref(), Some("root")); assert_eq!(h.port, Some(2222)); assert_eq!(h.proxy_jump.as_deref(), Some("bastion")); assert_eq!(h.local_forwards, vec!["8080 localhost:80"]); assert_eq!(h.server_alive_interval, Some(60));
+        assert!(h.certificate_file.as_ref().is_some_and(|p| p.ends_with(".ssh/id_ed25519-cert.pub")));
+        assert_eq!(h.strict_host_key_checking.as_deref(), Some("yes"));
+        assert!(h.user_known_hosts_file.as_ref().is_some_and(|p| p.ends_with(".ssh/known_hosts_prod")));
     }
 }

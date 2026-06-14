@@ -3,7 +3,7 @@
 Date: 2026-05-29
 Scope: local Rust source, SSH command construction, managed config writes, remote file helper paths, logs, README claims, and available automated tests.
 
-Last config/docs update: 2026-06-14.
+Last implementation/docs update: 2026-06-14.
 
 ## Summary
 
@@ -23,6 +23,14 @@ High-impact fixes completed in this pass:
 - fixed symlink `ls -la` parsing so `link -> target` is not treated as a path
 - expanded regression tests from 39 to 47 tests
 - rewrote README to mark partial/roadmap features honestly
+
+Follow-up implementation completed on 2026-06-14:
+
+- added per-host access profiles for auth source, jump path, agent forwarding, host-key posture, and saved forwards
+- parsed and preserved OpenSSH `CertificateFile`, `StrictHostKeyChecking`, and `UserKnownHostsFile`
+- preserved host security options in direct `ssh`, `scp`, remote file, command runner, health, and tunnel execution paths
+- surfaced warnings for enabled agent forwarding and disabled strict host-key checking
+- expanded `sshdeck doctor` checks for `ssh-keygen`, `ssh-add`, `ssh-agent`, security-key support, agent socket state, known_hosts, certificates, and per-host known_hosts files
 
 ## Command injection review
 
@@ -51,9 +59,9 @@ Findings and fixes:
    - Known limitation: remote listing uses `ls -la`; unusual filenames with newlines remain hard to represent correctly. A native SFTP backend is recommended before claiming production-grade file management.
 
 4. Tunnel commands.
-   - `src/ssh/tunnel.rs` currently generates display strings, not process execution.
-   - Live tunnel start/stop is not implemented; therefore process-injection risk is limited to copied/displayed commands.
-   - Future work: when execution is added, use `std::process::Command` with args rather than shell strings.
+   - `src/ssh/tunnel.rs` builds argument vectors for local, remote, and dynamic forwards.
+   - Live tunnel start/stop uses `std::process::Command` with args rather than shell strings.
+   - When the target host is in SSHDeck's inventory, tunnel execution uses the resolved host profile instead of a bare alias.
 
 ## Secret exposure review
 
@@ -77,7 +85,7 @@ Known risks:
 
 - Redaction is pattern-based, not a full secret scanner.
 - Command output is not currently persisted by the command runner, but if execution is wired later, output must be size-limited and optionally redacted.
-- Remote file content preview is not wired into the UI; before enabling it, require explicit confirmation for sensitive paths and never persist file contents to logs.
+- Remote file preview is wired into the UI; sensitive paths require explicit confirmation and file contents are not persisted to logs.
 
 ## Config safety review
 
@@ -113,26 +121,28 @@ Known risks:
 
 ## File operation safety review
 
-Implemented today:
+Implemented:
 
 - remote directory listing with quoted path expression
 - metadata-only preview in the main Files UI
 - sensitive-path helper checks
 - dangerous-delete helper checks
 - transfer queue state model
+- upload/download execution through system `scp`
+- safe remote editing with temporary local file, remote backup, upload, and cleanup
+- remote mkdir, touch, rename, chmod, chown, and delete actions with confirmations
 
 Not implemented yet:
 
-- real upload/download execution
-- remote edit with temp file, hash comparison, backup, and upload
-- remote delete/rename/new-file commands
-- overwrite confirmation
-- cancel/retry process management
+- native SFTP backend
+- byte-accurate transfer progress
+- overwrite prompts, cancel/retry process management, and richer multi-select actions
+- hash comparison/final upload prompt for safe edit
 
 Risk stance:
 
-- README now describes unimplemented destructive flows as roadmap items rather than complete safety guarantees.
-- Before implementing any destructive remote operation, require explicit confirmation, block `/`, strongly confirm system directories, and use `Command` args or carefully quoted remote shell snippets with tests.
+- Destructive remote operations require typed confirmation, block high-risk roots through helper checks, and use `Command` args plus carefully quoted remote shell snippets with tests.
+- A native SFTP backend is still recommended before claiming production-grade file management for unusual filenames and path semantics.
 
 ## Destructive action review
 
@@ -141,13 +151,9 @@ Implemented:
 - host deletion requires confirmation
 - managed host deletion edits only SSHDeck managed config, not the user's original `~/.ssh/config`
 - imported host deletion removes it from the current view/metadata only
-- dangerous command patterns are blocked in command input
-
-Not implemented:
-
-- explicit confirmation flow for dangerous custom remote command execution
-- remote file delete confirmation because remote delete is not implemented
-- tunnel start/stop lifecycle because live tunnel execution is not implemented
+- dangerous command patterns require typed confirmation before remote execution
+- remote file delete, rename, chmod, and chown actions require typed confirmation
+- tunnel start/stop lifecycle is implemented with child-process polling
 
 ## Terminal cleanup review
 
@@ -189,8 +195,8 @@ Potential cleanup:
 
 - Add Unix `0600` permissions for app config, managed ssh_config, and logs.
 - Replace `ls -la` parsing with SFTP or a machine-readable remote command (`stat`/NUL-separated output) before claiming robust file management.
-- Add output-size and timeout limits to any future remote command execution.
-- Add true confirmation state for dangerous commands rather than only blocking.
+- Add more complete overwrite prompts and retry/cancel controls to transfer execution.
+- Add hash comparison or final upload prompt to safe remote editing.
 - Add keyboard navigation for context menus.
 - Add PTY/manual integration tests for mouse and terminal cleanup.
 - Keep README feature claims synchronized with implementation.

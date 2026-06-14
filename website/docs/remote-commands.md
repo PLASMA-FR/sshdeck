@@ -1,6 +1,6 @@
 # Remote commands
 
-The command runner is designed to run safe commands over SSH and show output in a scrollable panel.
+The command runner runs commands over system OpenSSH, shows output in the TUI, and caps execution time and captured output.
 
 ## Intended safe commands
 
@@ -29,4 +29,6 @@ SSHDeck includes helpers that flag destructive patterns such as:
 
 ## Current status
 
-The UI prototype and safety helpers exist. TUI-backed remote command execution is not complete yet.
+TUI-backed remote command execution is implemented. Normal commands run in a background task with a 20 second timeout and a 64 KiB output cap. Dangerous patterns require a typed confirmation before execution.
+
+The detector is deliberately conservative and pattern-based. It is a last guardrail, not a shell sandbox.

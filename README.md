@@ -18,7 +18,7 @@ Docs: https://plasma-fr.github.io/sshdeck/docs/
 
 ## Current status
 
-SSHDeck is an early open-source MVP. It already provides a polished Rust/ratatui shell for host management, OpenSSH launching, managed host config, command palettes, broad mouse support, logs, and a prototype Yazi-style remote file browser.
+SSHDeck is an open-source local-first SSH manager. It provides a polished Rust/ratatui shell for host management, OpenSSH launching, managed host config, access-profile visibility, command palettes, broad mouse support, logs, tunnels, remote commands, health checks, and a Yazi-style remote file workflow.
 
 Implemented today:
 
@@ -26,31 +26,30 @@ Implemented today:
 - creates SSHDeck-managed hosts in `~/.config/sshdeck/ssh_config`
 - offers an optional backed-up `Include ~/.config/sshdeck/ssh_config` addition
 - add, edit, duplicate, and delete managed hosts from the TUI
+- access profiles for auth source, jump path, agent forwarding, host-key posture, and saved forwards
+- OpenSSH `CertificateFile`, `StrictHostKeyChecking`, and `UserKnownHostsFile` parsing/preservation
 - fuzzy host search
 - keyboard-first dashboard and help screens
 - broad mouse support: hover, click, double-click, right-click context menus, scrolling, modal buttons
 - launches system `ssh` and restores the terminal afterward
-- tunnel command generation for local, remote, and dynamic forwards
-- command runner UI prototype with dangerous-command detection
-- health panel placeholder with intended safe command list
-- SSHDeck Files prototype: remote directory listing over `ssh`, three-column browsing, metadata preview, hidden-files toggle, refresh, breadcrumbs, transfer queue modal, and dual-pane UI placeholder
+- live tunnel start/stop for local, remote, and dynamic forwards
+- command runner with timeout, output cap, and typed confirmation for risky patterns
+- remote health checks for uptime, disk, memory, kernel, failed services, and Docker count
+- SSHDeck Files: remote directory listing over `ssh`, three-column browsing, local/remote dual pane, metadata preview, hidden-files toggle, refresh, breadcrumbs, transfer queue, uploads/downloads, safe edit, and guarded remote mutations
 - settings screen for theme, animation, Unicode/Nerd Font, mouse, hidden files, and config path
 - backward-compatible app config fields for bookmarks, hidden imported hosts, recent hosts, tunnel presets, and last file paths
 - local logs with redaction for sensitive path markers and identity-file arguments
-- `sshdeck doctor` for local environment checks
-- unit tests for parsing, command generation, safety helpers, transfer queue state, and mouse hit regions
+- `sshdeck doctor` for local OpenSSH, key, agent, known_hosts, terminal, config, and default-path checks
+- unit tests for parsing, command generation, safety helpers, transfer queue state, health parsing, host profiles, and mouse hit regions
 
-Not implemented yet:
+Still rough / roadmap:
 
-- real SFTP/scp upload and download execution from the Files UI
-- safe remote editing with backup/upload flow
-- remote file delete, rename, new-file, chmod, and chown operations
-- real command runner execution from the TUI
-- remote health command execution and parsing
-- TUI wiring for persistent imported-host hiding, recent hosts, tunnel presets, and last-path restore
-- full bookmarks UI beyond the config schema
-- true local-pane filesystem model in dual-pane Files mode
-- live starting and stopping of tunnels from the TUI
+- native SFTP backend and byte-accurate transfer progress
+- full bookmarks picker UI and automatic last-path restore
+- persistent imported-host hiding restore path
+- tunnel preset editing/loading UI
+- richer multi-select file actions and retryable failed transfers
+- enterprise access-plane features such as RBAC, short-lived cert issuance, centralized audit, and session recording
 
 ## Install
 
@@ -98,10 +97,10 @@ Inside the TUI:
 a         add host
 e         edit host
 Enter     connect with system ssh
-s         open SSHDeck Files prototype
-t         tunnel command generator
-r         command runner prototype
-h         health panel placeholder
+s         open SSHDeck Files
+t         tunnel builder
+r         command runner
+h         health check
 Ctrl+p    command palette
 ?         help
 ```
@@ -155,12 +154,14 @@ These fields are backward-compatible. Missing fields default safely; several are
 - fuzzy search
 - groups, tags, favorites, and notes in local metadata
 - reserved config state for hidden imported hosts, recent hosts, tunnel presets, last paths, and bookmarks
+- per-host access profile for auth, jump host, agent forwarding, host-key policy, and forwards
 - connection launcher using system OpenSSH
-- port forwarding command generator
-- command runner prototype with dangerous-command blocking
-- health panel placeholder
-- prototype Yazi-style remote file browser using `ssh` directory listing
-- transfer queue data model and UI placeholder
+- live port forwarding with system OpenSSH
+- command runner with timeout, output cap, and typed confirmation for dangerous commands
+- remote health checks
+- Yazi-style remote file browser using `ssh` directory listing
+- upload/download transfer execution with system `scp`
+- safe remote editing with backup/upload flow
 - command palette
 - themes: blackout default, cyber, minimal
 - Unicode animations with ASCII and no-animation fallback
@@ -170,7 +171,7 @@ These fields are backward-compatible. Missing fields default safely; several are
 
 SSHDeck Files is a Yazi-inspired remote file workflow and one of the project's headline features.
 
-Current prototype:
+Current workflow:
 
 - three-column remote navigation
 - metadata preview panel
@@ -178,17 +179,18 @@ Current prototype:
 - hidden-files toggle
 - breadcrumbs
 - mouse selection and right-click context menu
+- local/remote dual-pane layout
 - transfer queue state and modal
-- dual-pane layout placeholder
+- upload and download execution through `scp`
+- safe remote editing with remote backup
+- guarded remote mkdir, touch, rename, delete, chmod, and chown
 - sensitive path helper checks
 
 Roadmap work:
 
-- upload and download execution
-- safe remote editing with backups
-- remote mutation commands
-- bookmarks UI
 - native SFTP backend or structured remote listing
+- byte-accurate progress, retry, and overwrite prompts
+- bookmarks picker UI
 
 Read more: https://plasma-fr.github.io/sshdeck/docs/sshdeck-files/
 
@@ -202,11 +204,14 @@ SSHDeck is designed to be conservative:
 - no private key storage
 - no blind rewrites of complex user SSH config
 - separate managed OpenSSH config for app-created hosts
+- visible per-host access profile before connecting
+- OpenSSH-compatible certificate, host-key, known_hosts, jump host, and agent-forwarding handling
 - timestamped backups before include-line changes
 - argument-vector command construction where possible
 - destination separators to reduce leading-dash option injection risk
-- dangerous command pattern detection in helpers
+- dangerous command pattern detection with typed confirmation
 - sensitive path preview guards in file helpers
+- guarded remote file mutations and remote-edit backups
 - local log redaction for common sensitive path markers
 
 Security review: docs/SECURITY_REVIEW.md
@@ -246,12 +251,12 @@ GitHub Pages workflow:
 | Fuzzy host search | Yes | Yes | No |
 | Mouse support | Partial/broad | Yes | No |
 | Right-click context menus | Partial | Yes | No |
-| Port forwarding UI | Partial: command generator | Yes | No |
-| Remote command runner | Prototype | Partial | Manual |
-| Server health dashboard | Placeholder | No | Manual |
-| SFTP file manager | Roadmap; ssh listing exists | Yes | Manual |
-| Yazi-style remote file browser | Partial | Partial | No |
-| Safe remote editing backups | Roadmap | Partial | Manual |
+| Port forwarding UI | Yes: live OpenSSH tunnels | Yes | No |
+| Remote command runner | Yes | Partial | Manual |
+| Server health dashboard | Yes | No | Manual |
+| File manager | SSH/scp today; native SFTP roadmap | Yes | Manual |
+| Yazi-style remote file browser | Yes | Partial | No |
+| Safe remote editing backups | Yes | Partial | Manual |
 | Open source | Yes | No | Yes |
 
 ## Roadmap

@@ -2,7 +2,7 @@
 
 SSHDeck is Termius + Yazi for your terminal: a local-first Rust TUI for SSH hosts, managed OpenSSH config, files, tunnels, commands, health checks, logs, keyboard workflows, and mouse-friendly operation.
 
-Current status: early MVP. Core host management, OpenSSH launching, managed config, search, mouse hit regions, command generation, logs, and the SSHDeck Files prototype are implemented. Some execution workflows are still roadmap items and are marked clearly in these docs.
+Current status: active local-first MVP. Host management, OpenSSH launching, managed config, access profiles, search, mouse hit regions, logs, SSHDeck Files, uploads/downloads, remote edit, guarded remote mutations, live tunnels, remote commands, and health checks are implemented. Native SFTP, richer transfer controls, bookmark picker UI, tunnel presets, and enterprise access-plane features are still roadmap items.
 
 ## Start here
 

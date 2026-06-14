@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::ssh::command::display_command;
+use crate::ssh::{
+    command::{display_command, ssh_noninteractive_args_for},
+    host::SshHost,
+};
 
 pub const TUNNEL_PROGRAM: &str = "ssh";
 
@@ -41,14 +44,32 @@ impl TunnelConfig {
         }
     }
 
+    pub fn ssh_command_for_host(&self, host: &SshHost) -> TunnelCommand {
+        TunnelCommand {
+            program: TUNNEL_PROGRAM.into(),
+            args: self.args_for_host(host),
+        }
+    }
+
     pub fn args(&self) -> Vec<String> {
+        let mut args = self.forward_args();
+        args.extend(["--".into(), self.host_alias.clone()]);
+        args
+    }
+
+    pub fn args_for_host(&self, host: &SshHost) -> Vec<String> {
+        let mut args = self.forward_args();
+        args.extend(ssh_noninteractive_args_for(host));
+        args
+    }
+
+    fn forward_args(&self) -> Vec<String> {
         let mut args = vec!["-N".into()];
         match self.tunnel_type {
             TunnelType::Local => args.extend(["-L".into(), self.forward_spec()]),
             TunnelType::Remote => args.extend(["-R".into(), self.forward_spec()]),
             TunnelType::Dynamic => args.extend(["-D".into(), self.dynamic_spec()]),
         }
-        args.extend(["--".into(), self.host_alias.clone()]);
         args
     }
 
@@ -126,6 +147,41 @@ mod tests {
         };
         assert_eq!(t.args(), vec!["-N", "-D", "127.0.0.1:1080", "--", "web prod"]);
         assert_eq!(t.command(), "ssh -N -D 127.0.0.1:1080 -- 'web prod'");
+    }
+
+    #[test]
+    fn tunnel_can_use_resolved_managed_host_options() {
+        let t = TunnelConfig {
+            tunnel_type: TunnelType::Local,
+            host_alias: "web".into(),
+            bind_address: None,
+            local_port: 8080,
+            target_host: Some("localhost".into()),
+            target_port: Some(80),
+        };
+        let host = SshHost {
+            alias: "web".into(),
+            hostname: Some("10.0.0.5".into()),
+            user: Some("deploy".into()),
+            port: Some(2222),
+            strict_host_key_checking: Some("yes".into()),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            t.args_for_host(&host),
+            vec![
+                "-N",
+                "-L",
+                "8080:localhost:80",
+                "-p",
+                "2222",
+                "-o",
+                "StrictHostKeyChecking=yes",
+                "--",
+                "deploy@10.0.0.5",
+            ]
+        );
     }
 
     #[test]

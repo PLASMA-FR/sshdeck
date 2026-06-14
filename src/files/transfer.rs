@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::ssh::{command::ssh_destination_for, host::SshHost};
+use crate::ssh::{
+    command::{ssh_config_option_args_for, ssh_destination_for},
+    host::SshHost,
+};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TransferDirection {
@@ -154,6 +157,7 @@ fn scp_base_args_for(host: &SshHost) -> Vec<String> {
     if let Some(proxy_jump) = &host.proxy_jump {
         args.extend(["-J".into(), proxy_jump.clone()]);
     }
+    args.extend(ssh_config_option_args_for(host));
     args
 }
 
@@ -199,6 +203,7 @@ mod tests {
             port: Some(2222),
             identity_file: Some(PathBuf::from("~/.ssh/id_ed25519")),
             proxy_jump: Some("bastion".into()),
+            strict_host_key_checking: Some("yes".into()),
             ..Default::default()
         };
 
@@ -211,6 +216,8 @@ mod tests {
                 "~/.ssh/id_ed25519",
                 "-J",
                 "bastion",
+                "-o",
+                "StrictHostKeyChecking=yes",
                 "-r",
                 "--",
                 "deploy@10.0.0.2:/tmp/a b",

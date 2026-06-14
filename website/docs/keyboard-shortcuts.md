@@ -20,10 +20,10 @@ a           add host
 e           edit host
 D           duplicate host
 d           delete host
-s           open SSHDeck Files prototype
-t           tunnel command generator
-r           command runner prototype
-h           health panel placeholder
+s           open SSHDeck Files
+t           tunnel builder
+r           command runner
+h           health check
 l           logs
 ,           settings
 Ctrl+p      command palette
@@ -41,11 +41,20 @@ l / Enter   open directory or select file for preview metadata
 Backspace   parent directory
 ~           home directory
 R           refresh current remote path
+p           preview selected remote file
 .           toggle hidden files
+Space       toggle selected remote path
 Tab         dual-pane view
 Shift+Tab   switch dual-pane focus
 T           transfers
 :           command mode
+u           upload selected local entry
+d           download selected remote entry
+x           delete selected remote file
+n           start mkdir command
+b           bookmark current remote path
 ```
 
-Reserved but not wired yet: Space visual selection, upload/download shortcuts, bookmarks, remote edit, rename, delete, new file/folder, chmod, and chown.
+Command mode handles `mkdir`, `touch`, `rename`, `chmod`, `chown`, `upload`, `download`, `bookmark add`, and `bookmark jump`.
+
+Reserved but not wired yet: a full bookmarks picker UI and richer multi-select actions.

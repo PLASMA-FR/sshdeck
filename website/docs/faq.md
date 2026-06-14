@@ -6,15 +6,15 @@ No. SSHDeck is local-first and runs in your terminal.
 
 ## Does SSHDeck replace OpenSSH?
 
-No. v1 uses your system OpenSSH tools for connection launching and related workflows.
+No. SSHDeck uses your system OpenSSH tools for connection launching, tunnels, commands, health checks, file transfers, and remote editing.
 
 ## Does SSHDeck need an account?
 
 No.
 
-## Does SSHDeck support SFTP today?
+## Does SSHDeck support file transfers today?
 
-The Yazi-style Files interface and remote listing prototype exist. Full upload/download execution is still roadmap work.
+Yes. SSHDeck Files can upload and download through system `scp`. Native SFTP is still roadmap work.
 
 ## Is `cargo install sshdeck` available?
 
